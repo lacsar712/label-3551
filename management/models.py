@@ -442,3 +442,90 @@ class Package(models.Model):
         now = timezone.now()
         delta = now - self.arrival_time
         return delta.days
+
+
+class Equipment(models.Model):
+    name = models.CharField("设备名称", max_length=200)
+    installation_location = models.CharField("安装位置", max_length=255)
+    estate = models.ForeignKey(Estate, on_delete=models.CASCADE, verbose_name="所属楼盘", related_name="equipments")
+    brand_model = models.CharField("品牌型号", max_length=200, blank=True, null=True)
+    installation_date = models.DateField("安装日期", blank=True, null=True)
+    warranty_period = models.DateField("质保期限", blank=True, null=True)
+    next_maintenance_date = models.DateField("下次维保日期")
+    responsible_person = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="责任人",
+        related_name="responsible_equipments",
+        limit_choices_to={'role__in': ['admin', 'staff']}
+    )
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        verbose_name = "设备设施"
+        verbose_name_plural = "设备设施台账"
+        ordering = ['next_maintenance_date']
+
+    def __str__(self):
+        return f"{self.name} - {self.estate.name}"
+
+    @property
+    def is_maintenance_due_soon(self):
+        from django.utils import timezone
+        today = timezone.localdate()
+        delta = self.next_maintenance_date - today
+        return 0 <= delta.days <= 30
+
+    @property
+    def is_maintenance_overdue(self):
+        from django.utils import timezone
+        today = timezone.localdate()
+        return self.next_maintenance_date < today
+
+    @property
+    def days_until_maintenance(self):
+        from django.utils import timezone
+        today = timezone.localdate()
+        delta = self.next_maintenance_date - today
+        return delta.days
+
+    @property
+    def warranty_status(self):
+        from django.utils import timezone
+        if not self.warranty_period:
+            return "unknown"
+        today = timezone.localdate()
+        if self.warranty_period < today:
+            return "expired"
+        delta = self.warranty_period - today
+        if delta.days <= 90:
+            return "expiring_soon"
+        return "valid"
+
+
+class MaintenanceLog(models.Model):
+    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, verbose_name="关联设备", related_name="maintenance_logs")
+    maintenance_date = models.DateField("维保日期")
+    content = models.TextField("维保内容")
+    operator = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="操作人",
+        related_name="operated_maintenance_logs",
+        limit_choices_to={'role__in': ['admin', 'staff']}
+    )
+    cost = models.DecimalField("费用(元)", max_digits=10, decimal_places=2, default=0.00)
+    created_at = models.DateTimeField("记录时间", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "维保日志"
+        verbose_name_plural = "维保日志管理"
+        ordering = ['-maintenance_date', '-created_at']
+
+    def __str__(self):
+        return f"{self.equipment.name} - {self.maintenance_date}"

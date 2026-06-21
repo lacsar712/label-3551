@@ -101,4 +101,12 @@ urlpatterns = [
     path('activities/<int:pk>/', views.OwnerActivityDetailView.as_view(), name='owner_activity_detail'),
     path('activities/<int:pk>/register/', views.ActivityRegisterView.as_view(), name='activity_register'),
     path('activities/<int:pk>/cancel/', views.ActivityCancelRegistrationView.as_view(), name='activity_cancel'),
+
+    # 设备设施台账
+    path('equipment/', views.EquipmentListView.as_view(), name='equipment_list'),
+    path('equipment/add/', views.EquipmentCreateView.as_view(), name='equipment_add'),
+    path('equipment/<int:pk>/edit/', views.EquipmentUpdateView.as_view(), name='equipment_edit'),
+    path('equipment/<int:pk>/delete/', views.EquipmentDeleteView.as_view(), name='equipment_delete'),
+    path('equipment/<int:pk>/', views.EquipmentDetailView.as_view(), name='equipment_detail'),
+    path('equipment/<int:equipment_pk>/log/add/', views.MaintenanceLogAddView.as_view(), name='maintenance_log_add'),
 ]

@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}设备设施台账 - 智慧物业平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">设备设施台账</h1>
+    <a href="{% url 'equipment_add' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> 新增设备档案
+    </a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card text-bg-secondary shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-title">设备总数</h6>
+                <p class="card-text fs-3 mb-0">{{ total_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-success shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-title">维保状态正常</h6>
+                <p class="card-text fs-3 mb-0">{{ normal_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-warning shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-title">30天内需维保</h6>
+                <p class="card-text fs-3 mb-0">{{ due_soon_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-danger shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-title">维保已过期</h6>
+                <p class="card-text fs-3 mb-0">{{ overdue_count }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">所属楼盘</label>
+                <select name="estate" class="form-select">
+                    <option value="">全部楼盘</option>
+                    {% for estate in estates %}
+                    <option value="{{ estate.pk }}" {% if current_filters.estate == estate.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ estate.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">维保状态</label>
+                <select name="maintenance_status" class="form-select">
+                    <option value="">全部状态</option>
+                    <option value="normal" {% if current_filters.maintenance_status == 'normal' %}selected{% endif %}>正常</option>
+                    <option value="due_soon" {% if current_filters.maintenance_status == 'due_soon' %}selected{% endif %}>30天内到期</option>
+                    <option value="overdue" {% if current_filters.maintenance_status == 'overdue' %}selected{% endif %}>已过期</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">搜索</label>
+                <input type="text" name="search" class="form-control" placeholder="搜索设备名称、位置、品牌型号..." value="{{ current_filters.search }}">
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">筛选</button>
+                <a href="{% url 'equipment_list' %}" class="btn btn-outline-secondary flex-grow-1">重置</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>设备名称</th>
+                        <th>所属楼盘</th>
+                        <th>安装位置</th>
+                        <th>品牌型号</th>
+                        <th>安装日期</th>
+                        <th>质保期限</th>
+                        <th>下次维保日期</th>
+                        <th>维保状态</th>
+                        <th>责任人</th>
+                        <th>维保记录</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for equipment in equipments %}
+                    <tr class="{% if equipment.is_maintenance_overdue %}table-danger{% elif equipment.is_maintenance_due_soon %}table-warning{% endif %}">
+                        <td>
+                            <a href="{% url 'equipment_detail' equipment.pk %}" class="text-decoration-none fw-semibold">
+                                {{ equipment.name }}
+                            </a>
+                        </td>
+                        <td>{{ equipment.estate.name }}</td>
+                        <td>{{ equipment.installation_location }}</td>
+                        <td>{{ equipment.brand_model|default:"-" }}</td>
+                        <td>{{ equipment.installation_date|default:"-" }}</td>
+                        <td>
+                            {% if equipment.warranty_period %}
+                                {% if equipment.warranty_status == 'expired' %}
+                                    <span class="badge bg-secondary">{{ equipment.warranty_period }} (已过期)</span>
+                                {% elif equipment.warranty_status == 'expiring_soon' %}
+                                    <span class="badge bg-warning text-dark">{{ equipment.warranty_period }} (即将到期)</span>
+                                {% else %}
+                                    <span class="badge bg-success">{{ equipment.warranty_period }}</span>
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if equipment.is_maintenance_overdue %}
+                                <span class="fw-bold text-danger">{{ equipment.next_maintenance_date }}</span>
+                            {% elif equipment.is_maintenance_due_soon %}
+                                <span class="fw-bold text-warning">{{ equipment.next_maintenance_date }}</span>
+                            {% else %}
+                                {{ equipment.next_maintenance_date }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if equipment.is_maintenance_overdue %}
+                                <span class="badge bg-danger">已过期 {{ equipment.days_until_maintenance|stringformat:"d"|cut:"-" }} 天</span>
+                            {% elif equipment.is_maintenance_due_soon %}
+                                <span class="badge bg-warning text-dark">{{ equipment.days_until_maintenance }} 天后到期</span>
+                            {% else %}
+                                <span class="badge bg-success">正常</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ equipment.responsible_person.username|default:"-" }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ equipment.maintenance_logs.count }} 条</span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{% url 'equipment_detail' equipment.pk %}" class="btn btn-sm btn-outline-primary">详情</a>
+                                <a href="{% url 'equipment_edit' equipment.pk %}" class="btn btn-sm btn-outline-secondary">编辑</a>
+                                <form method="post" action="{% url 'equipment_delete' equipment.pk %}" class="d-inline" onsubmit="return confirm('确定要删除该设备档案吗？');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">删除</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center text-muted py-4">
+                            暂无设备档案数据，请点击"新增设备档案"添加
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if is_paginated %}
+    <div class="card-footer bg-white border-top-0">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if current_filters.estate %}estate={{ current_filters.estate }}&{% endif %}{% if current_filters.maintenance_status %}maintenance_status={{ current_filters.maintenance_status }}&{% endif %}{% if current_filters.search %}search={{ current_filters.search }}&{% endif %}page={{ page_obj.previous_page_number }}">上一页</a>
+                </li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if current_filters.estate %}estate={{ current_filters.estate }}&{% endif %}{% if current_filters.maintenance_status %}maintenance_status={{ current_filters.maintenance_status }}&{% endif %}{% if current_filters.search %}search={{ current_filters.search }}&{% endif %}page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if current_filters.estate %}estate={{ current_filters.estate }}&{% endif %}{% if current_filters.maintenance_status %}maintenance_status={{ current_filters.maintenance_status }}&{% endif %}{% if current_filters.search %}search={{ current_filters.search }}&{% endif %}page={{ page_obj.next_page_number }}">下一页</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

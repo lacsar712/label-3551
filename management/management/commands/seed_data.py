@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration
+from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog
 from datetime import date, timedelta, datetime
 from django.utils import timezone
 import random
@@ -359,4 +359,157 @@ class Command(BaseCommand):
         )
 
         self.stdout.write(self.style.SUCCESS("社区活动数据生成完成！"))
+
+        # 11. 创建设备设施台账数据
+        today = timezone.localdate()
+
+        equipments_data = [
+            {
+                'name': '1栋1号电梯',
+                'installation_location': '1栋1单元大堂',
+                'brand_model': '三菱 NEXIEZ-MR',
+                'installation_date': today - timedelta(days=730),
+                'warranty_period': today + timedelta(days=365),
+                'next_maintenance_date': today + timedelta(days=5),
+                'responsible_person': staff,
+            },
+            {
+                'name': '1栋2号电梯',
+                'installation_location': '1栋1单元大堂',
+                'brand_model': '三菱 NEXIEZ-MR',
+                'installation_date': today - timedelta(days=730),
+                'warranty_period': today + timedelta(days=365),
+                'next_maintenance_date': today + timedelta(days=5),
+                'responsible_person': staff,
+            },
+            {
+                'name': '2栋1号电梯',
+                'installation_location': '2栋1单元大堂',
+                'brand_model': '日立 HGP-1050',
+                'installation_date': today - timedelta(days=540),
+                'warranty_period': today + timedelta(days=180),
+                'next_maintenance_date': today - timedelta(days=3),
+                'responsible_person': staff,
+            },
+            {
+                'name': '消防水泵',
+                'installation_location': '地下一层消防泵房',
+                'brand_model': '凯泉 KQSN200-M9',
+                'installation_date': today - timedelta(days=1095),
+                'warranty_period': today - timedelta(days=30),
+                'next_maintenance_date': today + timedelta(days=15),
+                'responsible_person': staff,
+            },
+            {
+                'name': '生活水泵1号',
+                'installation_location': '地下一层生活泵房',
+                'brand_model': '格兰富 CRN20-6',
+                'installation_date': today - timedelta(days=720),
+                'warranty_period': today + timedelta(days=60),
+                'next_maintenance_date': today + timedelta(days=20),
+                'responsible_person': admin,
+            },
+            {
+                'name': '生活水泵2号',
+                'installation_location': '地下一层生活泵房',
+                'brand_model': '格兰富 CRN20-6',
+                'installation_date': today - timedelta(days=720),
+                'warranty_period': today + timedelta(days=60),
+                'next_maintenance_date': today + timedelta(days=60),
+                'responsible_person': admin,
+            },
+            {
+                'name': '中央空调主机',
+                'installation_location': '楼顶设备层',
+                'brand_model': '格力 GMV-H120WL/A',
+                'installation_date': today - timedelta(days=365),
+                'warranty_period': today + timedelta(days=730),
+                'next_maintenance_date': today + timedelta(days=45),
+                'responsible_person': staff,
+            },
+            {
+                'name': '发电机',
+                'installation_location': '地下一层发电机房',
+                'brand_model': '康明斯 6BT5.9-G2',
+                'installation_date': today - timedelta(days=1460),
+                'warranty_period': None,
+                'next_maintenance_date': today - timedelta(days=10),
+                'responsible_person': staff,
+            },
+            {
+                'name': '配电室变压器',
+                'installation_location': '地下一层配电室',
+                'brand_model': '特变电工 SCB10-800KVA',
+                'installation_date': today - timedelta(days=1825),
+                'warranty_period': None,
+                'next_maintenance_date': today + timedelta(days=90),
+                'responsible_person': admin,
+            },
+            {
+                'name': '门禁系统1栋',
+                'installation_location': '1栋1单元入口',
+                'brand_model': '海康威视 DS-K1T671M',
+                'installation_date': today - timedelta(days=180),
+                'warranty_period': today + timedelta(days=545),
+                'next_maintenance_date': today + timedelta(days=25),
+                'responsible_person': staff,
+            },
+            {
+                'name': '监控系统主机',
+                'installation_location': '消防监控中心',
+                'brand_model': '海康威视 DS-8632N-K8',
+                'installation_date': today - timedelta(days=365),
+                'warranty_period': today + timedelta(days=365),
+                'next_maintenance_date': today + timedelta(days=10),
+                'responsible_person': admin,
+            },
+            {
+                'name': '车库道闸系统',
+                'installation_location': '地下车库入口',
+                'brand_model': '捷顺 JSTZ002',
+                'installation_date': today - timedelta(days=500),
+                'warranty_period': today + timedelta(days=120),
+                'next_maintenance_date': today - timedelta(days=5),
+                'responsible_person': staff,
+            },
+        ]
+
+        created_equipments = []
+        for eq_data in equipments_data:
+            eq = Equipment.objects.create(
+                estate=estate,
+                **eq_data
+            )
+            created_equipments.append(eq)
+
+        self.stdout.write(self.style.SUCCESS(f"设备设施数据生成完成！共 {len(created_equipments)} 条"))
+
+        # 12. 创建维保日志数据
+        maintenance_contents = [
+            ('更换齿轮箱润滑油，检查钢丝绳磨损情况，测试安全开关', 850.00),
+            ('清洁轿顶、地坎，调整门机系统，测试应急照明', 320.00),
+            ('检查泵体密封件，更换润滑油，测试压力开关', 560.00),
+            ('清洗滤芯，检查电气控制箱，紧固接线端子', 180.00),
+            ('检测绝缘电阻，清洁散热片，紧固母线连接', 420.00),
+            ('加载测试，更换机油和三滤，检查蓄电池', 1200.00),
+            ('校准人脸识别算法，更新固件，检查接线', 200.00),
+            ('清理硬盘，检查摄像头画面，调整录像参数', 150.00),
+            ('润滑道闸机械结构，检查地感线圈，调整限位', 280.00),
+            ('冷媒压力检测，清洗室外机换热器，检查电气线路', 680.00),
+        ]
+
+        for eq in created_equipments:
+            num_logs = random.randint(1, 4)
+            for i in range(num_logs):
+                content, cost = random.choice(maintenance_contents)
+                days_ago = random.randint(30, 400)
+                MaintenanceLog.objects.create(
+                    equipment=eq,
+                    maintenance_date=today - timedelta(days=days_ago),
+                    content=content,
+                    operator=random.choice([staff, admin]),
+                    cost=cost
+                )
+
+        self.stdout.write(self.style.SUCCESS("维保日志数据生成完成！"))
 

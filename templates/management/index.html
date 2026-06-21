@@ -133,6 +133,36 @@
             </div>
         </div>
     </div>
+    <div class="col-md-3">
+        <a href="{% url 'equipment_list' %}" class="text-decoration-none text-white">
+            <div class="card shadow-sm h-100" style="background-color: #6f42c1;">
+                <div class="card-body">
+                    <h5 class="card-title">设备总数</h5>
+                    <p class="card-text fs-2">{{ total_equipment|default:0 }}</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{% url 'equipment_list' %}?maintenance_status=due_soon" class="text-decoration-none text-white">
+            <div class="card text-bg-warning shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">30天内需维保</h5>
+                    <p class="card-text fs-2">{{ upcoming_maintenance|default:0 }}</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{% url 'equipment_list' %}?maintenance_status=overdue" class="text-decoration-none text-white">
+            <div class="card text-bg-danger shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">维保已过期</h5>
+                    <p class="card-text fs-2">{{ overdue_maintenance|default:0 }}</p>
+                </div>
+            </div>
+        </a>
+    </div>
     {% else %}
     <div class="col-md-4">
         <div class="card shadow-sm h-100">

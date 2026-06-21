@@ -4,8 +4,8 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView, View
 from django.contrib import messages
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration
-from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm, ComplaintSuggestionForm, ComplaintReplyForm, PackageForm, PackagePickupForm, CommunityActivityForm
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog
+from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm, ComplaintSuggestionForm, ComplaintReplyForm, PackageForm, PackagePickupForm, CommunityActivityForm, EquipmentForm, MaintenanceLogForm
 from django.views.generic import DetailView
 from django.utils import timezone
 from datetime import date
@@ -42,6 +42,16 @@ class IndexView(LoginRequiredMixin, TemplateView):
             context['pending_packages'] = Package.objects.filter(status='pending').count()
             context['overdue_packages'] = Package.objects.filter(status='pending', arrival_time__lte=timezone.now() - timezone.timedelta(days=7)).count()
             context['active_activities'] = CommunityActivity.objects.filter(end_time__gte=timezone.now()).count()
+            today = timezone.localdate()
+            thirty_days_later = today + timezone.timedelta(days=30)
+            context['upcoming_maintenance'] = Equipment.objects.filter(
+                next_maintenance_date__lte=thirty_days_later,
+                next_maintenance_date__gte=today
+            ).count()
+            context['overdue_maintenance'] = Equipment.objects.filter(
+                next_maintenance_date__lt=today
+            ).count()
+            context['total_equipment'] = Equipment.objects.count()
         else:
             context['my_units'] = Unit.objects.filter(owner=self.request.user)
             context['my_parking_spots'] = ParkingSpot.objects.filter(owner=self.request.user)
@@ -1165,3 +1175,129 @@ class OwnerActivityDetailView(LoginRequiredMixin, DetailView):
             owner=self.request.user
         ).exists()
         return context
+
+
+# --- 设备设施台账 ---
+class EquipmentListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    model = Equipment
+    template_name = 'management/equipment_list.html'
+    context_object_name = 'equipments'
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = Equipment.objects.select_related('estate', 'responsible_person').prefetch_related('maintenance_logs')
+
+        estate_id = self.request.GET.get('estate')
+        maintenance_status = self.request.GET.get('maintenance_status')
+        search = self.request.GET.get('search')
+
+        if estate_id:
+            qs = qs.filter(estate_id=estate_id)
+
+        today = timezone.localdate()
+        thirty_days_later = today + timezone.timedelta(days=30)
+        if maintenance_status == 'overdue':
+            qs = qs.filter(next_maintenance_date__lt=today)
+        elif maintenance_status == 'due_soon':
+            qs = qs.filter(next_maintenance_date__lte=thirty_days_later, next_maintenance_date__gte=today)
+        elif maintenance_status == 'normal':
+            qs = qs.filter(next_maintenance_date__gt=thirty_days_later)
+
+        if search:
+            qs = qs.filter(name__icontains=search) | qs.filter(installation_location__icontains=search) | qs.filter(brand_model__icontains=search)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        today = timezone.localdate()
+        thirty_days_later = today + timezone.timedelta(days=30)
+
+        context['estates'] = Estate.objects.all()
+        context['current_filters'] = {
+            'estate': self.request.GET.get('estate', ''),
+            'maintenance_status': self.request.GET.get('maintenance_status', ''),
+            'search': self.request.GET.get('search', ''),
+        }
+        context['total_count'] = Equipment.objects.count()
+        context['overdue_count'] = Equipment.objects.filter(next_maintenance_date__lt=today).count()
+        context['due_soon_count'] = Equipment.objects.filter(
+            next_maintenance_date__lte=thirty_days_later,
+            next_maintenance_date__gte=today
+        ).count()
+        context['normal_count'] = Equipment.objects.filter(next_maintenance_date__gt=thirty_days_later).count()
+        context['today'] = today
+        return context
+
+
+class EquipmentCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
+    model = Equipment
+    form_class = EquipmentForm
+    template_name = 'management/form.html'
+    success_url = reverse_lazy('equipment_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, "设备信息添加成功！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "新增设备档案"
+        return context
+
+
+class EquipmentUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
+    model = Equipment
+    form_class = EquipmentForm
+    template_name = 'management/form.html'
+    success_url = reverse_lazy('equipment_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, "设备信息更新成功！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "编辑设备档案"
+        return context
+
+
+class EquipmentDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
+    model = Equipment
+    template_name = 'management/confirm_delete.html'
+    success_url = reverse_lazy('equipment_list')
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(self.request, "设备档案已删除！")
+        return super().delete(request, *args, **kwargs)
+
+
+class EquipmentDetailView(LoginRequiredMixin, StaffRequiredMixin, DetailView):
+    model = Equipment
+    template_name = 'management/equipment_detail.html'
+    context_object_name = 'equipment'
+
+    def get_queryset(self):
+        return Equipment.objects.select_related('estate', 'responsible_person').prefetch_related('maintenance_logs__operator')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['maintenance_log_form'] = MaintenanceLogForm()
+        context['today'] = timezone.localdate()
+        return context
+
+
+class MaintenanceLogAddView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def post(self, request, equipment_pk):
+        equipment = get_object_or_404(Equipment, pk=equipment_pk)
+        form = MaintenanceLogForm(request.POST)
+        if form.is_valid():
+            log = form.save(commit=False)
+            log.equipment = equipment
+            log.save()
+            messages.success(request, "维保日志已记录！")
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
+        return redirect(reverse('equipment_detail', kwargs={'pk': equipment_pk}))

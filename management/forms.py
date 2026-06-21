@@ -1,5 +1,5 @@
 from django import forms
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, Equipment, MaintenanceLog
 from django.utils import timezone
 
 class OwnerForm(forms.ModelForm):
@@ -264,3 +264,52 @@ class CommunityActivityForm(forms.ModelForm):
         if start_time and registration_deadline and registration_deadline >= start_time:
             raise forms.ValidationError("报名截止时间必须早于活动开始时间")
         return cleaned_data
+
+
+class EquipmentForm(forms.ModelForm):
+    class Meta:
+        model = Equipment
+        fields = ['name', 'installation_location', 'estate', 'brand_model', 'installation_date', 'warranty_period', 'next_maintenance_date', 'responsible_person']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '如：1号电梯、消防水泵等'}),
+            'installation_location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '如：1栋1单元大堂、地下车库等'}),
+            'estate': forms.Select(attrs={'class': 'form-select'}),
+            'brand_model': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '如：三菱 NEXIEZ-MR'}),
+            'installation_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'warranty_period': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'next_maintenance_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'responsible_person': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['responsible_person'].queryset = User.objects.filter(role__in=['admin', 'staff'])
+        if not self.instance.pk:
+            today = timezone.localdate()
+            self.initial['next_maintenance_date'] = today + timezone.timedelta(days=30)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        installation_date = cleaned_data.get('installation_date')
+        warranty_period = cleaned_data.get('warranty_period')
+        if installation_date and warranty_period and installation_date > warranty_period:
+            raise forms.ValidationError("质保期限不能早于安装日期")
+        return cleaned_data
+
+
+class MaintenanceLogForm(forms.ModelForm):
+    class Meta:
+        model = MaintenanceLog
+        fields = ['maintenance_date', 'content', 'operator', 'cost']
+        widgets = {
+            'maintenance_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': '请详细记录维保内容，如：更换润滑油、检查电气线路、更换滤芯等'}),
+            'operator': forms.Select(attrs={'class': 'form-select'}),
+            'cost': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['operator'].queryset = User.objects.filter(role__in=['admin', 'staff'])
+        if not self.instance.pk:
+            self.initial['maintenance_date'] = timezone.localdate()

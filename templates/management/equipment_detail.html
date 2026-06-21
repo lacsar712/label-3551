@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}{{ equipment.name }} - 设备详情 - 智慧物业平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-2">
+                <li class="breadcrumb-item"><a href="{% url 'equipment_list' %}" class="text-decoration-none">设备设施台账</a></li>
+                <li class="breadcrumb-item active" aria-current="page">设备详情</li>
+            </ol>
+        </nav>
+        <h1 class="h2">{{ equipment.name }}</h1>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'equipment_edit' equipment.pk %}" class="btn btn-outline-primary">编辑设备</a>
+        <a href="{% url 'equipment_list' %}" class="btn btn-outline-secondary">返回列表</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">基本信息</h5>
+                <span class="badge
+                    {% if equipment.is_maintenance_overdue %}bg-danger
+                    {% elif equipment.is_maintenance_due_soon %}bg-warning text-dark
+                    {% else %}bg-success{% endif %}">
+                    {% if equipment.is_maintenance_overdue %}维保已过期
+                    {% elif equipment.is_maintenance_due_soon %}维保即将到期
+                    {% else %}维保正常{% endif %}
+                </span>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    <tbody>
+                        <tr>
+                            <th scope="row" style="width: 120px;">设备名称</th>
+                            <td>{{ equipment.name }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">所属楼盘</th>
+                            <td>{{ equipment.estate.name }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">安装位置</th>
+                            <td>{{ equipment.installation_location }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">品牌型号</th>
+                            <td>{{ equipment.brand_model|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">安装日期</th>
+                            <td>{{ equipment.installation_date|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">质保期限</th>
+                            <td>
+                                {% if equipment.warranty_period %}
+                                    {% if equipment.warranty_status == 'expired' %}
+                                        <span class="text-muted">{{ equipment.warranty_period }}</span>
+                                        <span class="badge bg-secondary ms-1">已过期</span>
+                                    {% elif equipment.warranty_status == 'expiring_soon' %}
+                                        <span>{{ equipment.warranty_period }}</span>
+                                        <span class="badge bg-warning text-dark ms-1">即将到期</span>
+                                    {% else %}
+                                        <span class="text-success">{{ equipment.warranty_period }}</span>
+                                        <span class="badge bg-success ms-1">有效</span>
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">下次维保日期</th>
+                            <td>
+                                {% if equipment.is_maintenance_overdue %}
+                                    <span class="fw-bold text-danger">{{ equipment.next_maintenance_date }}</span>
+                                    <span class="badge bg-danger ms-1">已过期 {{ equipment.days_until_maintenance|stringformat:"d"|cut:"-" }} 天</span>
+                                {% elif equipment.is_maintenance_due_soon %}
+                                    <span class="fw-bold text-warning">{{ equipment.next_maintenance_date }}</span>
+                                    <span class="badge bg-warning text-dark ms-1">{{ equipment.days_until_maintenance }} 天后到期</span>
+                                {% else %}
+                                    <span>{{ equipment.next_maintenance_date }}</span>
+                                    <span class="badge bg-success ms-1">正常</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">责任人</th>
+                            <td>{{ equipment.responsible_person.username|default:"-" }}{% if equipment.responsible_person %} ({{ equipment.responsible_person.get_role_display }}{% endif %}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">维保记录数</th>
+                            <td><span class="badge bg-info">{{ equipment.maintenance_logs.count }} 条</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">追加维保日志</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'maintenance_log_add' equipment.pk %}">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">维保日期</label>
+                            {{ maintenance_log_form.maintenance_date }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">操作人</label>
+                            {{ maintenance_log_form.operator }}
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">维保内容</label>
+                            {{ maintenance_log_form.content }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">费用(元)</label>
+                            {{ maintenance_log_form.cost }}
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">提交维保记录</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">维保日志 ({{ equipment.maintenance_logs.count }} 条)</h5>
+                {% if equipment.maintenance_logs %}
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if equipment.maintenance_logs.all %}
+                <div class="list-group list-group-flush">
+                    {% for log in equipment.maintenance_logs.all %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="badge bg-primary">{{ log.maintenance_date }}</span>
+                                    {% if log.operator %}
+                                    <span class="text-muted small">操作人：{{ log.operator.username }}</span>
+                                    {% endif %}
+                                </div>
+                                <p class="mb-1 text-dark">{{ log.content }}</p>
+                                <small class="text-muted">记录时间：{{ log.created_at|date:"Y-m-d H:i" }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="fw-bold text-primary">¥{{ log.cost }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    暂无维保记录，请在上方表单添加第一条维保日志。
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -93,6 +93,13 @@
                         class="{% if 'announcement' in request.resolver_match.url_name %}active{% endif %}">公告管理</a>
                     <a href="{% url 'activity_list' %}"
                         class="{% if 'activity' in request.resolver_match.url_name %}active{% endif %}">活动管理</a>
+                    <a href="{% url 'equipment_list' %}"
+                        class="{% if 'equipment' in request.resolver_match.url_name %}active{% endif %}">
+                        设备台账
+                        {% if upcoming_maintenance or overdue_maintenance %}
+                        <span class="badge bg-danger ms-1">{{ upcoming_maintenance|default:0|add:overdue_maintenance|default:0 }}</span>
+                        {% endif %}
+                    </a>
                     {% endif %}
 
                     {% if request.user.role == 'owner' %}

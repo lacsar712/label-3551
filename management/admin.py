@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog
 
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
@@ -70,3 +70,39 @@ class CommunityActivityAdmin(admin.ModelAdmin):
 
 admin.site.register(CommunityActivity, CommunityActivityAdmin)
 admin.site.register(ActivityRegistration)
+
+
+class MaintenanceLogInline(admin.TabularInline):
+    model = MaintenanceLog
+    extra = 0
+    readonly_fields = ('created_at',)
+
+
+class EquipmentAdmin(admin.ModelAdmin):
+    list_display = ('name', 'estate', 'installation_location', 'brand_model', 'next_maintenance_date', 'responsible_person', 'maintenance_status')
+    list_filter = ('estate', 'responsible_person')
+    search_fields = ('name', 'installation_location', 'brand_model')
+    date_hierarchy = 'next_maintenance_date'
+    inlines = [MaintenanceLogInline]
+
+    def maintenance_status(self, obj):
+        from django.utils.html import format_html
+        if obj.is_maintenance_overdue:
+            return format_html('<span class="badge bg-danger">已过期 {} 天</span>', -obj.days_until_maintenance)
+        elif obj.is_maintenance_due_soon:
+            return format_html('<span class="badge bg-warning text-dark">{} 天后到期</span>', obj.days_until_maintenance)
+        return format_html('<span class="badge bg-success">正常</span>')
+    maintenance_status.short_description = '维保状态'
+
+
+admin.site.register(Equipment, EquipmentAdmin)
+
+
+class MaintenanceLogAdmin(admin.ModelAdmin):
+    list_display = ('equipment', 'maintenance_date', 'operator', 'cost', 'created_at')
+    list_filter = ('maintenance_date', 'operator')
+    search_fields = ('equipment__name', 'content')
+    date_hierarchy = 'maintenance_date'
+
+
+admin.site.register(MaintenanceLog, MaintenanceLogAdmin)
