@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: property_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: property_db
+    ports:
+      - "13306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-time-zone='+08:00'
+
+  backend:
+    build: .
+    container_name: property_backend
+    ports:
+      - "18000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=root
+      - DB_NAME=property_db
+    depends_on:
+      - db
+    command: >
+      sh -c "
+      sleep 20 &&
+      python manage.py makemigrations &&
+      python manage.py migrate &&
+      python manage.py seed_data &&
+      python manage.py runserver 0.0.0.0:8000
+      "
+
+volumes:
+  mysql_data:

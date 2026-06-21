@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.git/
+.env
+db.sqlite3
+.DS_Store
+.vscode/
+.idea/
+trae/
+AI测评Prompt集.md

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}报修管理 - 智慧物业平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">报修管理记录</h1>
+    {% if request.user.role == 'owner' %}
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'repair_add' %}" class="btn btn-sm btn-primary">我要报修</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 筛选表单 -->
+<div class="card shadow-sm border-0 mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">故障类型</label>
+                <select name="fault_type" class="form-select">
+                    <option value="">全部</option>
+                    {% for key, value in fault_types %}
+                    <option value="{{ key }}" {% if request.GET.fault_type == key %}selected{% endif %}>{{ value }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">处理状态</label>
+                <select name="status" class="form-select">
+                    <option value="">全部</option>
+                    {% for key, value in statuses %}
+                    <option value="{{ key }}" {% if request.GET.status == key %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">查询</button>
+            </div>
+            <div class="col-md-2">
+                <a href="{% url 'repair_list' %}" class="btn btn-outline-secondary w-100">覆盖重置</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>类型</th>
+                        <th>位置</th>
+                        <th>提交人/房屋</th>
+                        <th>提交时间</th>
+                        <th>状态</th>
+                        {% if request.user.role == 'staff' or request.user.role == 'admin' %}
+                        <th>操作</th>
+                        {% else %}
+                        <th>反馈结果</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for repair in repairs %}
+                    <tr>
+                        <td>{{ repair.get_fault_type_display }}</td>
+                        <td>{{ repair.location }}</td>
+                        <td>
+                            {{ repair.owner.username }}
+                            {% if repair.unit %}<br><small class="text-muted">{{ repair.unit.name }}</small>{% endif %}
+                        </td>
+                        <td>{{ repair.submit_time|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            {% if repair.status == 'pending' %}
+                            <span class="badge bg-warning text-dark">待处理</span>
+                            {% elif repair.status == 'processing' %}
+                            <span class="badge bg-info text-dark">处理中</span>
+                            {% else %}
+                            <span class="badge bg-success">已完成</span>
+                            {% endif %}
+                        </td>
+                        {% if request.user.role == 'staff' or request.user.role == 'admin' %}
+                        <td>
+                            <a href="{% url 'repair_process' repair.id %}" class="btn btn-sm btn-outline-primary">处理</a>
+                        </td>
+                        {% else %}
+                        <td>{{ repair.feedback|default:"-" }}</td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">暂无报修记录</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

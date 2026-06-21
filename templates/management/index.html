@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - 智慧物业平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">系统大盘</h1>
+</div>
+
+<div class="row g-4">
+    {% if request.user.role == 'admin' or request.user.role == 'staff' %}
+    <div class="col-md-3">
+        <div class="card text-bg-primary shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">管理的楼盘数</h5>
+                <p class="card-text fs-2">{{ estate_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-success shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">总业主数</h5>
+                <p class="card-text fs-2">{{ owner_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-warning shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">待处理报修</h5>
+                <p class="card-text fs-2">{{ pending_repairs }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-danger shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">未缴费记录数</h5>
+                <p class="card-text fs-2">{{ unpaid_fees }}</p>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">我的房产</h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for unit in my_units %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ unit.floor.building.estate.name }} - {{ unit.floor.building.name }} - {{ unit.name }}
+                    <span class="badge bg-secondary rounded-pill">面积: {{ unit.area }}㎡</span>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted">暂无房产信息绑定</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">近期缴费提醒</h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for fee in unpaid_fees %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ fee.get_fee_type_display }}
+                    <span class="text-danger fw-bold">¥{{ fee.amount }}</span>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted">暂无待缴费用</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-12 mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">最近报修记录</h5>
+                <a href="{% url 'repair_add' %}" class="btn btn-sm btn-primary">我要报修</a>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>类型</th>
+                            <th>位置</th>
+                            <th>状态</th>
+                            <th>提交时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for repair in my_repairs %}
+                        <tr>
+                            <td>{{ repair.get_fault_type_display }}</td>
+                            <td>{{ repair.location }}</td>
+                            <td>
+                                {% if repair.status == 'pending' %}<span class="badge bg-warning text-dark">待处理</span>
+                                {% elif repair.status == 'processing' %}<span class="badge bg-info text-dark">处理中</span>
+                                {% else %}<span class="badge bg-success">已完成</span>{% endif %}
+                            </td>
+                            <td>{{ repair.submit_time|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">暂无报修记录</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
