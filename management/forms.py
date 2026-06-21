@@ -1,5 +1,5 @@
 from django import forms
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply
 from django.utils import timezone
 
 class OwnerForm(forms.ModelForm):
@@ -174,3 +174,24 @@ class ParkingSpotForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['owner'].queryset = User.objects.filter(role='owner')
         self.fields['unit'].queryset = Unit.objects.all()
+
+
+class ComplaintSuggestionForm(forms.ModelForm):
+    class Meta:
+        model = ComplaintSuggestion
+        fields = ['cs_type', 'title', 'description', 'is_anonymous']
+        widgets = {
+            'cs_type': forms.Select(attrs={'class': 'form-select'}),
+            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '请输入标题'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5, 'placeholder': '请详细描述您的投诉、建议或咨询内容'}),
+            'is_anonymous': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
+class ComplaintReplyForm(forms.ModelForm):
+    class Meta:
+        model = ComplaintReply
+        fields = ['content']
+        widgets = {
+            'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '请输入回复内容'}),
+        }

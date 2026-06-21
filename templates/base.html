@@ -68,6 +68,15 @@
                     {% endif %}
                     <a href="{% url 'repair_list' %}"
                         class="{% if 'repair' in request.resolver_match.url_name %}active{% endif %}">报修管理</a>
+                    <a href="{% url 'complaint_list' %}"
+                        class="{% if 'complaint' in request.resolver_match.url_name %}active{% endif %}">
+                        投诉建议
+                        {% if request.user.role == 'admin' or request.user.role == 'staff' %}
+                        {% if pending_complaints %}
+                        <span class="badge bg-danger ms-1">{{ pending_complaints }}</span>
+                        {% endif %}
+                        {% endif %}
+                    </a>
                     <a href="{% url 'fee_list' %}"
                         class="{% if 'fee' in request.resolver_match.url_name %}active{% endif %}">费用中心</a>
                     {% if request.user.role == 'admin' or request.user.role == 'staff' %}

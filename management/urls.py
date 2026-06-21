@@ -74,4 +74,11 @@ urlpatterns = [
     path('parking/<int:pk>/delete/', views.ParkingSpotDeleteView.as_view(), name='parking_spot_delete'),
     path('parking/<int:pk>/bind/', views.ParkingSpotBindView.as_view(), name='parking_spot_bind'),
     path('parking/<int:pk>/unbind/', views.ParkingSpotUnbindView.as_view(), name='parking_spot_unbind'),
+
+    # 投诉建议
+    path('complaint/', views.ComplaintListView.as_view(), name='complaint_list'),
+    path('complaint/add/', views.ComplaintCreateView.as_view(), name='complaint_add'),
+    path('complaint/<int:pk>/', views.ComplaintDetailView.as_view(), name='complaint_detail'),
+    path('complaint/<int:pk>/reply/', views.ComplaintReplyView.as_view(), name='complaint_reply'),
+    path('complaint/<int:pk>/close/', views.ComplaintCloseView.as_view(), name='complaint_close'),
 ]

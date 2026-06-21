@@ -4,8 +4,8 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView, View
 from django.contrib import messages
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot
-from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply
+from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm, ComplaintSuggestionForm, ComplaintReplyForm
 from django.views.generic import DetailView
 from django.utils import timezone
 from datetime import date
@@ -38,6 +38,7 @@ class IndexView(LoginRequiredMixin, TemplateView):
             context['unpaid_fees'] = Fee.objects.filter(status='unpaid').count()
             context['visiting_count'] = Visitor.objects.filter(status='visiting').count()
             context['draft_announcements'] = Announcement.objects.filter(status='draft').count()
+            context['pending_complaints'] = ComplaintSuggestion.objects.filter(status='pending').count()
         else:
             context['my_units'] = Unit.objects.filter(owner=self.request.user)
             context['my_parking_spots'] = ParkingSpot.objects.filter(owner=self.request.user)
@@ -747,3 +748,95 @@ class ParkingSpotUnbindView(LoginRequiredMixin, StaffRequiredMixin, View):
         parking_spot.save()
         messages.success(request, "车位解绑成功！")
         return redirect(reverse('parking_spot_list'))
+
+
+class ComplaintListView(LoginRequiredMixin, ListView):
+    model = ComplaintSuggestion
+    template_name = 'management/complaint_list.html'
+    context_object_name = 'complaints'
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = ComplaintSuggestion.objects.select_related('owner')
+        if self.request.user.role == 'owner':
+            qs = qs.filter(owner=self.request.user)
+
+        cs_type = self.request.GET.get('cs_type')
+        status = self.request.GET.get('status')
+        if cs_type:
+            qs = qs.filter(cs_type=cs_type)
+        if status:
+            qs = qs.filter(status=status)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['cs_types'] = ComplaintSuggestion.TYPE_CHOICES
+        context['statuses'] = ComplaintSuggestion.STATUS_CHOICES
+        context['current_filters'] = {
+            'cs_type': self.request.GET.get('cs_type', ''),
+            'status': self.request.GET.get('status', ''),
+        }
+        return context
+
+
+class ComplaintCreateView(LoginRequiredMixin, CreateView):
+    model = ComplaintSuggestion
+    form_class = ComplaintSuggestionForm
+    template_name = 'management/complaint_form.html'
+    success_url = reverse_lazy('complaint_list')
+
+    def form_valid(self, form):
+        form.instance.owner = self.request.user
+        messages.success(self.request, "提交成功！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "提交投诉建议"
+        return context
+
+
+class ComplaintDetailView(LoginRequiredMixin, DetailView):
+    model = ComplaintSuggestion
+    template_name = 'management/complaint_detail.html'
+    context_object_name = 'complaint'
+
+    def get_queryset(self):
+        qs = ComplaintSuggestion.objects.select_related('owner').prefetch_related('replies__replier')
+        if self.request.user.role == 'owner':
+            qs = qs.filter(owner=self.request.user)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['reply_form'] = ComplaintReplyForm()
+        context['can_reply'] = self.request.user.role in ['admin', 'staff']
+        context['can_close'] = self.request.user.role in ['admin', 'staff']
+        return context
+
+
+class ComplaintReplyView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def post(self, request, pk):
+        complaint = get_object_or_404(ComplaintSuggestion, pk=pk)
+        form = ComplaintReplyForm(request.POST)
+        if form.is_valid():
+            reply = form.save(commit=False)
+            reply.complaint = complaint
+            reply.replier = request.user
+            reply.save()
+            if complaint.status == 'pending':
+                complaint.status = 'replied'
+                complaint.save()
+            messages.success(request, "回复成功！")
+        return redirect(reverse('complaint_detail', kwargs={'pk': complaint.pk}))
+
+
+class ComplaintCloseView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def post(self, request, pk):
+        complaint = get_object_or_404(ComplaintSuggestion, pk=pk)
+        complaint.status = 'closed'
+        complaint.save()
+        messages.success(request, "工单已关闭！")
+        return redirect(reverse('complaint_detail', kwargs={'pk': complaint.pk}))

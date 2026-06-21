@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply
 
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
@@ -23,3 +23,21 @@ admin.site.register(Fee)
 admin.site.register(Visitor)
 admin.site.register(Announcement, AnnouncementAdmin)
 admin.site.register(ParkingSpot)
+
+
+class ComplaintReplyInline(admin.TabularInline):
+    model = ComplaintReply
+    extra = 0
+    readonly_fields = ('replier', 'content', 'created_at')
+
+
+class ComplaintSuggestionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'cs_type', 'title', 'owner', 'is_anonymous', 'status', 'created_at')
+    list_filter = ('cs_type', 'status', 'is_anonymous')
+    search_fields = ('title', 'description')
+    date_hierarchy = 'created_at'
+    inlines = [ComplaintReplyInline]
+
+
+admin.site.register(ComplaintSuggestion, ComplaintSuggestionAdmin)
+admin.site.register(ComplaintReply)

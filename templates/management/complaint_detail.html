@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}投诉建议详情 - 智慧物业平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">投诉建议详情</h1>
+    <a href="{% url 'complaint_list' %}" class="btn btn-sm btn-outline-secondary">返回列表</a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="fw-bold fs-5">{{ complaint.title }}</span>
+                    {% if complaint.cs_type == 'complaint' %}
+                    <span class="badge bg-danger ms-2">投诉</span>
+                    {% elif complaint.cs_type == 'suggestion' %}
+                    <span class="badge bg-success ms-2">建议</span>
+                    {% else %}
+                    <span class="badge bg-info text-dark ms-2">咨询</span>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if complaint.status == 'pending' %}
+                    <span class="badge bg-warning text-dark fs-6">待回复</span>
+                    {% elif complaint.status == 'replied' %}
+                    <span class="badge bg-primary fs-6">已回复</span>
+                    {% else %}
+                    <span class="badge bg-secondary fs-6">已关闭</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between text-muted small mb-3">
+                    <div>
+                        {% if complaint.is_anonymous %}
+                        <span>提交人: 匿名</span>
+                        {% else %}
+                        <span>提交人: {{ complaint.owner.username }}</span>
+                        {% endif %}
+                    </div>
+                    <div>提交时间: {{ complaint.created_at|date:"Y-m-d H:i:s" }}</div>
+                </div>
+                <div class="border rounded p-3 bg-light">
+                    {{ complaint.description|linebreaksbr }}
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">往来记录</h6>
+            </div>
+            <div class="card-body">
+                {% for reply in complaint.replies.all %}
+                <div class="d-flex mb-3 {% if forloop.last %}pb-0{% else %}pb-3 border-bottom{% endif %}">
+                    <div class="flex-shrink-0 me-3">
+                        {% if reply.replier.role == 'admin' or reply.replier.role == 'staff' %}
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width:40px;height:40px;font-size:14px;">物业</div>
+                        {% else %}
+                        <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center" style="width:40px;height:40px;font-size:14px;">业主</div>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-semibold">{{ reply.replier_display }}</span>
+                            <small class="text-muted">{{ reply.created_at|date:"Y-m-d H:i:s" }}</small>
+                        </div>
+                        <div class="bg-white border rounded p-2">
+                            {{ reply.content|linebreaksbr }}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center text-muted py-3">暂无往来记录</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if can_reply and complaint.status != 'closed' %}
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">回复</h6>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'complaint_reply' complaint.pk %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        {{ reply_form.content }}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">提交回复</button>
+                        {% if can_close %}
+                        <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('closeForm').submit()">关闭工单</button>
+                        {% endif %}
+                    </div>
+                </form>
+                {% if can_close %}
+                <form id="closeForm" method="post" action="{% url 'complaint_close' complaint.pk %}" class="d-none">
+                    {% csrf_token %}
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% elif can_close and complaint.status == 'closed' %}
+        <div class="text-center text-muted py-2">工单已关闭</div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">工单信息</h6>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">编号</span>
+                    <span>#{{ complaint.id }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">类型</span>
+                    <span>{{ complaint.get_cs_type_display }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">状态</span>
+                    <span>
+                        {% if complaint.status == 'pending' %}
+                        <span class="badge bg-warning text-dark">待回复</span>
+                        {% elif complaint.status == 'replied' %}
+                        <span class="badge bg-primary">已回复</span>
+                        {% else %}
+                        <span class="badge bg-secondary">已关闭</span>
+                        {% endif %}
+                    </span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">匿名</span>
+                    <span>{% if complaint.is_anonymous %}是{% else %}否{% endif %}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">提交时间</span>
+                    <span>{{ complaint.created_at|date:"Y-m-d H:i" }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">更新时间</span>
+                    <span>{{ complaint.updated_at|date:"Y-m-d H:i" }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">回复数</span>
+                    <span>{{ complaint.replies.count }}</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

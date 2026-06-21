@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}提交投诉建议 - 智慧物业平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">{{ title }}</h1>
+    <a href="{% url 'complaint_list' %}" class="btn btn-sm btn-outline-secondary">返回列表</a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        {% for field in form %}
+                        {% for error in field.errors %}
+                        <div>{{ error }}</div>
+                        {% endfor %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.cs_type.id_for_label }}" class="form-label">类型</label>
+                        {{ form.cs_type }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.title.id_for_label }}" class="form-label">标题</label>
+                        {{ form.title }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">详细描述</label>
+                        {{ form.description }}
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        {{ form.is_anonymous }}
+                        <label for="{{ form.is_anonymous.id_for_label }}" class="form-check-label">匿名提交</label>
+                        <div class="form-text">勾选后，物业端将不会显示您的用户名</div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">提交</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

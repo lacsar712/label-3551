@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot
+from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply
 from datetime import date, timedelta, datetime
 from django.utils import timezone
 import random
@@ -191,4 +191,49 @@ class Command(BaseCommand):
         )
         
         self.stdout.write(self.style.SUCCESS("Database seeded successfully!"))
+
+        # 8. 创建投诉建议数据
+        cs1 = ComplaintSuggestion.objects.create(
+            owner=owner1, cs_type='complaint',
+            title='楼道灯长期不亮',
+            description='1栋1层楼道灯已经坏了将近一个月了，晚上回家非常不方便，存在安全隐患，请尽快维修。',
+            is_anonymous=False, status='replied'
+        )
+        ComplaintReply.objects.create(
+            complaint=cs1, replier=staff,
+            content='您好，感谢您的反馈！我们已经安排电工师傅于本周三前去维修，届时可能需要短暂停电，敬请谅解。'
+        )
+
+        cs2 = ComplaintSuggestion.objects.create(
+            owner=owner2, cs_type='suggestion',
+            title='建议增设快递柜',
+            description='小区目前快递只能放在门卫处，经常丢失或拿错。建议在1栋楼下增设智能快递柜，方便业主取件。',
+            is_anonymous=False, status='replied'
+        )
+        ComplaintReply.objects.create(
+            complaint=cs2, replier=staff,
+            content='感谢您的建议！物业已经联系了丰巢和速递易两家公司，正在协商安装方案，预计下个月可以落实。'
+        )
+
+        cs3 = ComplaintSuggestion.objects.create(
+            owner=owner1, cs_type='inquiry',
+            title='物业费收费标准咨询',
+            description='请问物业费是按什么标准收取的？是否有明细可以查看？另外，空置房屋是否有减免政策？',
+            is_anonymous=False, status='pending'
+        )
+
+        cs4 = ComplaintSuggestion.objects.create(
+            owner=owner2, cs_type='complaint',
+            title='凌晨施工噪音扰民',
+            description='2栋旁边最近几天凌晨2-3点还有施工噪音，严重影响睡眠。请物业出面协调处理。',
+            is_anonymous=True, status='closed'
+        )
+        ComplaintReply.objects.create(
+            complaint=cs4, replier=admin,
+            content='经核实，该施工为市政管道抢修工程，已与施工方协调，夜间施工时间调整至晚22点前结束。如有再次扰民，请随时联系我们。'
+        )
+        ComplaintReply.objects.create(
+            complaint=cs4, replier=owner2,
+            content='好的，希望后续不再有夜间施工的情况，谢谢处理。'
+        )
 

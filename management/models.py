@@ -218,6 +218,61 @@ class Announcement(models.Model):
         today = timezone.localdate()
         return today > self.effective_end_date
 
+class ComplaintSuggestion(models.Model):
+    TYPE_CHOICES = (
+        ('complaint', '投诉'),
+        ('suggestion', '建议'),
+        ('inquiry', '咨询'),
+    )
+    STATUS_CHOICES = (
+        ('pending', '待回复'),
+        ('replied', '已回复'),
+        ('closed', '已关闭'),
+    )
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="提交业主", related_name="complaints")
+    cs_type = models.CharField("类型", max_length=20, choices=TYPE_CHOICES)
+    title = models.CharField("标题", max_length=200)
+    description = models.TextField("详细描述")
+    is_anonymous = models.BooleanField("匿名提交", default=False)
+    status = models.CharField("状态", max_length=20, choices=STATUS_CHOICES, default='pending')
+
+    created_at = models.DateTimeField("提交时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        verbose_name = "投诉建议"
+        verbose_name_plural = "投诉建议管理"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        display_name = "匿名用户" if self.is_anonymous else self.owner.username
+        return f"#{self.id} [{self.get_cs_type_display()}] {self.title} - {display_name}"
+
+
+class ComplaintReply(models.Model):
+    complaint = models.ForeignKey(ComplaintSuggestion, on_delete=models.CASCADE, verbose_name="关联工单", related_name="replies")
+    replier = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="回复人", related_name="complaint_replies")
+    content = models.TextField("回复内容")
+    created_at = models.DateTimeField("回复时间", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "投诉建议回复"
+        verbose_name_plural = "投诉建议回复管理"
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"回复 #{self.complaint.id} - {self.replier}"
+
+    @property
+    def replier_display(self):
+        if self.replier and self.replier.role in ['admin', 'staff']:
+            return f"物业客服 {self.replier.username}"
+        if self.complaint.is_anonymous:
+            return "匿名业主"
+        return self.replier.username if self.replier else "未知"
+
+
 class ParkingSpot(models.Model):
     TYPE_CHOICES = (
         ('property', '产权'),
