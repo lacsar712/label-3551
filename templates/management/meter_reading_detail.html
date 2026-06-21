@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}抄表详情 - 智慧物业平台{% endblock %}
+
+{% block extra_css %}
+<style>
+    .water-gradient {
+        background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+    }
+    .electric-gradient {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    .info-card {
+        transition: transform 0.2s ease;
+    }
+    .info-card:hover {
+        transform: translateY(-2px);
+    }
+    .first-reading-alert {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+    }
+    .usage-positive {
+        color: #dc3545;
+    }
+    .usage-negative {
+        color: #198754;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">抄表详情</h1>
+    <div class="d-flex gap-2">
+        <a href="{% url 'meter_reading_list' %}" class="btn btn-outline-secondary">返回列表</a>
+        {% if request.user.role == 'admin' or request.user.role == 'staff' %}
+        <a href="{% url 'meter_reading_edit' reading.pk %}" class="btn btn-warning">编辑</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if reading.is_first_reading %}
+<div class="alert first-reading-alert mb-4 shadow-sm">
+    <div class="d-flex align-items-center">
+        <svg class="bi flex-shrink-0 me-2" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+        </svg>
+        <div>
+            <strong>⚠️ 首次抄录提示</strong>：该单元为首次录入{% if reading.meter_type == 'water' %}水表{% else %}电表{% endif %}读数，上期读数默认为 0，本期用量即为本期读数。
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100 info-card {% if reading.meter_type == 'water' %}border-info{% else %}border-danger{% endif %} border-2">
+            <div class="card-header {% if reading.meter_type == 'water' %}water-gradient{% else %}electric-gradient{% endif %} text-white">
+                <h5 class="mb-0">
+                    {% if reading.meter_type == 'water' %}
+                    💧 水表抄录信息
+                    {% else %}
+                    ⚡ 电表抄录信息
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-sm-6 mb-3">
+                        <label class="text-muted small">抄表月份</label>
+                        <div class="fw-bold fs-5">{{ reading.month_display }}</div>
+                    </div>
+                    <div class="col-sm-6 mb-3">
+                        <label class="text-muted small">抄录时间</label>
+                        <div class="fw-medium">{{ reading.created_at|date:"Y-m-d H:i" }}</div>
+                    </div>
+                    <div class="col-sm-6 mb-3">
+                        <label class="text-muted small">上期读数</label>
+                        <div class="fw-medium fs-5">{{ reading.previous_reading }}</div>
+                    </div>
+                    <div class="col-sm-6 mb-3">
+                        <label class="text-muted small">本期读数</label>
+                        <div class="fw-bold fs-4 {% if reading.meter_type == 'water' %}text-info{% else %}text-danger{% endif %}">
+                            {{ reading.current_reading }}
+                        </div>
+                    </div>
+                    <div class="col-12 mb-3">
+                        <div class="bg-light rounded p-3 text-center">
+                            <label class="text-muted small">本期用量</label>
+                            <div class="fw-bold fs-1 {% if reading.meter_type == 'water' %}text-info{% else %}text-danger{% endif %}">
+                                {{ reading.usage }}
+                                <span class="fs-5">{% if reading.meter_type == 'water' %}吨{% else %}度{% endif %}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% if change_rate is not None %}
+                    <div class="col-12">
+                        <div class="text-center p-2 rounded {% if change_rate > 0 %}bg-danger-subtle{% elif change_rate < 0 %}bg-success-subtle{% else %}bg-secondary-subtle{% endif %}">
+                            <label class="small">环比变化</label>
+                            <div class="fw-bold fs-4 {% if change_rate > 0 %}usage-positive{% elif change_rate < 0 %}usage-negative{% endif %}">
+                                {% if change_rate > 0 %}↑ +{% elif change_rate < 0 %}↓ {% endif %}{{ change_rate }}%
+                                <span class="fw-normal fs-6">
+                                    {% if change_rate > 0 %}较上月增加{% elif change_rate < 0 %}较上月减少{% else %}与上月持平{% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100 info-card border-primary border-2">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">🏠 关联房屋信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="text-muted small">楼盘</label>
+                    <div class="fw-medium fs-5">{{ reading.unit.floor.building.estate.name }}</div>
+                    <div class="text-muted small">{{ reading.unit.floor.building.estate.address }}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-muted small">楼栋 / 楼层</label>
+                    <div class="fw-medium">{{ reading.unit.floor.building.name }} / {{ reading.unit.floor.name }}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-muted small">房号</label>
+                    <div class="fw-bold fs-4">{{ reading.unit.name }}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-muted small">房屋面积</label>
+                    <div class="fw-medium">{{ reading.unit.area }} ㎡</div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-muted small">业主</label>
+                    {% if reading.unit.owner %}
+                    <div class="fw-medium">{{ reading.unit.owner.username }}</div>
+                    {% if reading.unit.owner.phone %}
+                    <div class="text-muted small">{{ reading.unit.owner.phone }}</div>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-muted">未绑定业主</div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    <label class="text-muted small">抄录人</label>
+                    <div class="fw-medium">
+                        {% if reading.recorded_by %}
+                        {{ reading.recorded_by.username }}
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if previous_reading_obj %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">📊 上期数据对比</h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>项目</th>
+                    <th>上期（{{ previous_reading_obj.month_display }}）</th>
+                    <th>本期（{{ reading.month_display }}）</th>
+                    <th>变化</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="fw-medium">读数</td>
+                    <td class="text-end">{{ previous_reading_obj.current_reading }}</td>
+                    <td class="text-end fw-medium">{{ reading.current_reading }}</td>
+                    <td class="text-end fw-bold {% if reading.current_reading >= previous_reading_obj.current_reading %}text-danger{% else %}text-warning{% endif %}">
+                        {% if reading.current_reading >= previous_reading_obj.current_reading %}+{% endif %}{{ reading.current_reading|add:"-"|add:previous_reading_obj.current_reading }}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="fw-medium">用量</td>
+                    <td class="text-end">{{ previous_reading_obj.usage }} {% if reading.meter_type == 'water' %}吨{% else %}度{% endif %}</td>
+                    <td class="text-end fw-medium">{{ reading.usage }} {% if reading.meter_type == 'water' %}吨{% else %}度{% endif %}</td>
+                    <td class="text-end">
+                        {% if change_rate is not None %}
+                        <span class="fw-bold {% if change_rate > 0 %}usage-positive{% elif change_rate < 0 %}usage-negative{% endif %}">
+                            {% if change_rate > 0 %}↑ +{% elif change_rate < 0 %}↓ {% endif %}{{ change_rate }}%
+                        </span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if reading.remarks %}
+<div class="card shadow-sm">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">📝 备注信息</h5>
+    </div>
+    <div class="card-body">
+        <p class="mb-0">{{ reading.remarks }}</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

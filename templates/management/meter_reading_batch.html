@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}批量抄表录入 - 智慧物业平台{% endblock %}
+
+{% block extra_css %}
+<style>
+    .batch-table th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #f8f9fa;
+    }
+    .is-first-tag {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .water-header {
+        background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+        color: white;
+    }
+    .electric-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+    .input-highlight:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">批量抄表录入</h1>
+    <div class="d-flex gap-2">
+        <a href="{% url 'meter_reading_list' %}" class="btn btn-outline-secondary">返回列表</a>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">抄表月份</label>
+                {{ batch_form.reading_month }}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">抄表类型</label>
+                {{ batch_form.meter_type }}
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">楼盘（可选）</label>
+                {{ batch_form.estate }}
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">楼栋（可选）</label>
+                {{ batch_form.building }}
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">
+                    <span class="me-1">🔍</span>加载单元
+                </button>
+                <a href="{% url 'meter_reading_batch' %}" class="btn btn-outline-secondary">重置</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if units_data %}
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            {% if meter_type == 'water' %}💧 水表{% else %}⚡ 电表{% endif %}批量录入 - {{ reading_month|date:"Y年m月" }}
+            <span class="badge bg-secondary ms-2">共 {{ units_data|length }} 个单元</span>
+        </h5>
+        <button type="button" class="btn btn-sm btn-outline-info" onclick="fillAllPrevious()">
+            <span class="me-1">📋</span>全部填充上期读数
+        </button>
+    </div>
+    <form method="post" id="batchForm">
+        {% csrf_token %}
+        <input type="hidden" name="reading_month" value="{{ reading_month|date:'Y-m' }}">
+        <input type="hidden" name="meter_type" value="{{ meter_type }}">
+        <div class="card-body p-0">
+            <div style="max-height: 60vh; overflow-y: auto;">
+                <table class="table table-hover batch-table mb-0">
+                    <thead>
+                        <tr class="{% if meter_type == 'water' %}water-header{% else %}electric-header{% endif %}">
+                            <th style="width: 30px;">#</th>
+                            <th>楼盘</th>
+                            <th>楼栋</th>
+                            <th>楼层</th>
+                            <th>房号</th>
+                            <th>业主</th>
+                            <th class="text-end" style="width: 120px;">上期读数</th>
+                            <th style="width: 150px;">本期读数</th>
+                            <th style="width: 150px;">本期用量</th>
+                            <th style="width: 150px;">备注</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in units_data %}
+                        <input type="hidden" name="unit_id[]" value="{{ item.unit.id }}">
+                        <tr class="{% if item.is_first %}table-warning{% endif %} {% if item.existing %}table-success{% endif %}">
+                            <td class="text-muted">{{ forloop.counter }}</td>
+                            <td>
+                                <small>{{ item.unit.floor.building.estate.name }}</small>
+                            </td>
+                            <td>{{ item.unit.floor.building.name }}</td>
+                            <td>{{ item.unit.floor.name }}</td>
+                            <td class="fw-medium">{{ item.unit.name }}</td>
+                            <td>
+                                {% if item.unit.owner %}
+                                <small>{{ item.unit.owner.username }}</small>
+                                {% else %}
+                                <span class="text-muted small">未绑定</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <span class="fw-medium {% if item.is_first %}text-warning-emphasis{% endif %}">
+                                    {{ item.previous_reading }}
+                                </span>
+                                {% if item.is_first %}
+                                <span class="badge is-first-tag ms-1" style="font-size: 0.65rem;">首次</span>
+                                {% endif %}
+                                {% if item.existing %}
+                                <span class="badge bg-success ms-1" style="font-size: 0.65rem;">已录</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <input type="number"
+                                       name="current_reading[]"
+                                       step="0.01"
+                                       min="0"
+                                       class="form-control form-control-sm input-highlight reading-input"
+                                       value="{{ item.current_reading }}"
+                                       data-prev="{{ item.previous_reading }}"
+                                       data-row="{{ forloop.counter0 }}"
+                                       placeholder="请输入读数">
+                            </td>
+                            <td>
+                                <input type="text"
+                                       class="form-control form-control-sm usage-display bg-light"
+                                       data-row="{{ forloop.counter0 }}"
+                                       readonly
+                                       value="{% if item.existing %}{{ item.existing.usage }}{% endif %}"
+                                       style="cursor: not-allowed;">
+                            </td>
+                            <td>
+                                <input type="text"
+                                       name="remarks[]"
+                                       class="form-control form-control-sm"
+                                       value="{% if item.existing %}{{ item.existing.remarks|default:'' }}{% endif %}"
+                                       placeholder="备注">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+            <div class="text-muted small">
+                <span class="badge bg-warning me-1">黄色行</span>=首次抄录
+                <span class="badge bg-success ms-2 me-1">绿色行</span>=已有记录
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary" onclick="clearAllInputs()">清空本期读数</button>
+                <button type="submit" class="btn btn-primary">
+                    <span class="me-1">💾</span>保存全部
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% else %}
+<div class="card shadow-sm">
+    <div class="card-body text-center py-5">
+        <div class="display-4 text-muted mb-3">📊</div>
+        <p class="text-muted mb-0">请选择抄表月份和抄表类型，可按楼盘/楼栋筛选，然后点击"加载单元"开始批量录入</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.reading-input').forEach(function(input) {
+        input.addEventListener('input', function() {
+            var row = this.dataset.row;
+            var prev = parseFloat(this.dataset.prev) || 0;
+            var curr = parseFloat(this.value) || 0;
+            var usage = Math.max(0, curr - prev);
+            var usageInput = document.querySelector('.usage-display[data-row="' + row + '"]');
+            if (usageInput) {
+                usageInput.value = usage.toFixed(2);
+            }
+        });
+    });
+});
+
+function fillAllPrevious() {
+    document.querySelectorAll('.reading-input').forEach(function(input) {
+        if (!input.value) {
+            input.value = input.dataset.prev;
+            input.dispatchEvent(new Event('input'));
+        }
+    });
+}
+
+function clearAllInputs() {
+    if (confirm('确定要清空所有本期读数吗？')) {
+        document.querySelectorAll('.reading-input').forEach(function(input) {
+            input.value = '';
+            input.dispatchEvent(new Event('input'));
+        });
+    }
+}
+
+document.getElementById('batchForm').addEventListener('submit', function(e) {
+    var hasValue = false;
+    document.querySelectorAll('.reading-input').forEach(function(input) {
+        if (input.value) {
+            hasValue = true;
+        }
+    });
+    if (!hasValue) {
+        if (!confirm('您还没有录入任何本期读数，确定要提交吗？')) {
+            e.preventDefault();
+        }
+    }
+});
+</script>
+{% endblock %}

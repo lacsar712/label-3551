@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}抄表管理 - 智慧物业平台{% endblock %}
+
+{% block extra_css %}
+<style>
+    .first-reading-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .water-badge {
+        background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+    }
+    .electric-badge {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">抄表管理</h1>
+    <div class="d-flex gap-2">
+        <a href="{% url 'meter_reading_add' %}" class="btn btn-primary">
+            <span class="me-1">+</span>单条录入
+        </a>
+        <a href="{% url 'meter_reading_batch' %}" class="btn btn-outline-primary">
+            <span class="me-1">📋</span>批量录入
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card text-bg-primary shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">抄表记录总数</h5>
+                <p class="card-text fs-2">{{ total_readings }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-info shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">首次抄录记录</h5>
+                <p class="card-text fs-2">{{ first_reading_count }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">楼盘</label>
+                <select class="form-select" name="estate" id="filter_estate">
+                    <option value="">全部楼盘</option>
+                    {% for estate in estates %}
+                    <option value="{{ estate.id }}" {% if current_filters.estate == estate.id|stringformat:"i" %}selected{% endif %}>{{ estate.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">楼栋</label>
+                <select class="form-select" name="building" id="filter_building">
+                    <option value="">全部楼栋</option>
+                    {% for building in buildings %}
+                    <option value="{{ building.id }}" data-estate="{{ building.estate.id }}" {% if current_filters.building == building.id|stringformat:"i" %}selected{% endif %}>{{ building.estate.name }} - {{ building.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">抄表月份</label>
+                <input type="month" class="form-control" name="reading_month" value="{{ current_filters.reading_month }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">抄表类型</label>
+                <select class="form-select" name="meter_type">
+                    <option value="">全部类型</option>
+                    {% for value, label in meter_types %}
+                    <option value="{{ value }}" {% if current_filters.meter_type == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">筛选</button>
+                <a href="{% url 'meter_reading_list' %}" class="btn btn-outline-secondary">重置</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>楼盘/楼栋</th>
+                    <th>单元房号</th>
+                    <th>抄表类型</th>
+                    <th>抄表月份</th>
+                    <th>上期读数</th>
+                    <th>本期读数</th>
+                    <th>本期用量</th>
+                    <th>首次抄录</th>
+                    <th>抄录人</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for reading in readings %}
+                <tr>
+                    <td>
+                        <div class="fw-medium">{{ reading.unit.floor.building.estate.name }}</div>
+                        <small class="text-muted">{{ reading.unit.floor.building.name }}</small>
+                    </td>
+                    <td>
+                        <div>{{ reading.unit.floor.name }}</div>
+                        <div class="fw-medium">{{ reading.unit.name }}</div>
+                    </td>
+                    <td>
+                        <span class="badge {% if reading.meter_type == 'water' %}water-badge{% else %}electric-badge{% endif %}">
+                            {{ reading.get_meter_type_display }}
+                        </span>
+                    </td>
+                    <td>{{ reading.month_display }}</td>
+                    <td class="text-end">{{ reading.previous_reading }}</td>
+                    <td class="text-end fw-medium">{{ reading.current_reading }}</td>
+                    <td class="text-end">
+                        <span class="fw-bold {% if reading.meter_type == 'water' %}text-info{% else %}text-danger{% endif %}">
+                            {{ reading.usage }}
+                            {% if reading.meter_type == 'water' %}吨{% else %}度{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if reading.is_first_reading %}
+                        <span class="badge first-reading-badge">首次</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if reading.recorded_by %}
+                        {{ reading.recorded_by.username }}
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="{% url 'meter_reading_detail' reading.pk %}" class="btn btn-sm btn-outline-primary">详情</a>
+                            <a href="{% url 'meter_reading_edit' reading.pk %}" class="btn btn-sm btn-outline-warning">编辑</a>
+                            <a href="{% url 'meter_reading_delete' reading.pk %}" class="btn btn-sm btn-outline-danger">删除</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="text-center text-muted py-4">
+                        暂无抄表记录，请点击上方按钮录入
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if is_paginated %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1{% for key, value in current_filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}">首页</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in current_filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}">上一页</a>
+        </li>
+        {% endif %}
+        <li class="page-item active">
+            <span class="page-link">第 {{ page_obj.number }} 页 / 共 {{ page_obj.paginator.num_pages }} 页</span>
+        </li>
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in current_filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}">下一页</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in current_filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}">末页</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var estateSelect = document.getElementById('filter_estate');
+    var buildingSelect = document.getElementById('filter_building');
+    var allBuildings = Array.from(buildingSelect.querySelectorAll('option[data-estate]'));
+
+    function filterBuildings() {
+        var selectedEstate = estateSelect.value;
+        var currentBuilding = buildingSelect.value;
+        buildingSelect.innerHTML = '<option value="">全部楼栋</option>';
+
+        allBuildings.forEach(function(opt) {
+            if (!selectedEstate || opt.dataset.estate === selectedEstate) {
+                var clone = opt.cloneNode(true);
+                if (clone.value === currentBuilding) {
+                    clone.selected = true;
+                }
+                buildingSelect.appendChild(clone);
+            }
+        });
+    }
+
+    estateSelect.addEventListener('change', filterBuildings);
+    filterBuildings();
+});
+</script>
+{% endblock %}

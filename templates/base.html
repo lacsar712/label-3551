@@ -80,6 +80,8 @@
                     <a href="{% url 'fee_list' %}"
                         class="{% if 'fee' in request.resolver_match.url_name %}active{% endif %}">费用中心</a>
                     {% if request.user.role == 'admin' or request.user.role == 'staff' %}
+                    <a href="{% url 'meter_reading_list' %}"
+                        class="{% if 'meter_reading' in request.resolver_match.url_name %}active{% endif %}">💧⚡ 抄表管理</a>
                     <a href="{% url 'visitor_list' %}"
                         class="{% if 'visitor' in request.resolver_match.url_name %}active{% endif %}">访客登记中心</a>
                     <a href="{% url 'package_list' %}"

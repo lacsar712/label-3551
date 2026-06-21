@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview, MeterReading
 
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
@@ -149,3 +149,14 @@ class DecorationApplicationAdmin(admin.ModelAdmin):
 
 admin.site.register(DecorationApplication, DecorationApplicationAdmin)
 admin.site.register(DecorationReview)
+
+
+class MeterReadingAdmin(admin.ModelAdmin):
+    list_display = ('unit', 'meter_type', 'reading_month', 'previous_reading', 'current_reading', 'usage', 'is_first_reading', 'recorded_by', 'created_at')
+    list_filter = ('meter_type', 'reading_month', 'is_first_reading', 'unit__floor__building__estate')
+    search_fields = ('unit__name', 'remarks', 'recorded_by__username')
+    date_hierarchy = 'reading_month'
+    readonly_fields = ('previous_reading', 'usage', 'is_first_reading', 'created_at', 'updated_at')
+
+
+admin.site.register(MeterReading, MeterReadingAdmin)

@@ -4,13 +4,14 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView, View
 from django.contrib import messages
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview
-from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm, ComplaintSuggestionForm, ComplaintReplyForm, PackageForm, PackagePickupForm, CommunityActivityForm, EquipmentForm, MaintenanceLogForm, DutyScheduleForm, DutyScheduleBatchCopyForm, DecorationOwnerForm, DecorationReviewForm, DecorationReviewCommentForm
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview, MeterReading
+from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm, ComplaintSuggestionForm, ComplaintReplyForm, PackageForm, PackagePickupForm, CommunityActivityForm, EquipmentForm, MaintenanceLogForm, DutyScheduleForm, DutyScheduleBatchCopyForm, DecorationOwnerForm, DecorationReviewForm, DecorationReviewCommentForm, MeterReadingForm, MeterReadingBatchForm
 from django.views.generic import DetailView
 from django.utils import timezone
 from datetime import date, timedelta
 import csv
 from django.http import HttpResponse, JsonResponse
+from django.db import transaction
 
 class CustomLoginView(LoginView):
     template_name = 'management/login.html'
@@ -120,6 +121,49 @@ class IndexView(LoginRequiredMixin, TemplateView):
             context['my_decorations'] = DecorationApplication.objects.filter(
                 owner=self.request.user
             ).order_by('-created_at')[:5]
+
+            my_unit_ids = list(Unit.objects.filter(owner=self.request.user).values_list('id', flat=True))
+            if my_unit_ids:
+                water_readings = MeterReading.objects.filter(
+                    unit_id__in=my_unit_ids,
+                    meter_type='water'
+                ).select_related('unit').order_by('-reading_month')[:3 * len(my_unit_ids)]
+                electric_readings = MeterReading.objects.filter(
+                    unit_id__in=my_unit_ids,
+                    meter_type='electric'
+                ).select_related('unit').order_by('-reading_month')[:3 * len(my_unit_ids)]
+
+                water_by_unit = {}
+                electric_by_unit = {}
+                for r in water_readings:
+                    water_by_unit.setdefault(r.unit_id, []).append(r)
+                for r in electric_readings:
+                    electric_by_unit.setdefault(r.unit_id, []).append(r)
+
+                meter_summary = []
+                for unit in context['my_units']:
+                    water_list = list(reversed(water_by_unit.get(unit.id, [])))
+                    electric_list = list(reversed(electric_by_unit.get(unit.id, [])))
+
+                    def calc_recent_with_change(readings_list):
+                        if not readings_list:
+                            return [], None
+                        recent = readings_list[-3:]
+                        last = recent[-1]
+                        change_rate = last.usage_change_rate
+                        return recent, change_rate
+
+                    water_recent, water_change = calc_recent_with_change(water_list)
+                    electric_recent, electric_change = calc_recent_with_change(electric_list)
+
+                    meter_summary.append({
+                        'unit': unit,
+                        'water_recent': water_recent,
+                        'water_change': water_change,
+                        'electric_recent': electric_recent,
+                        'electric_change': electric_change,
+                    })
+                context['meter_summary'] = meter_summary
         return context
 
 # --- 楼盘管理 ---
@@ -1671,3 +1715,264 @@ class DecorationCompleteView(LoginRequiredMixin, StaffRequiredMixin, View):
 
         messages.success(request, "装修申请已标记为施工完成")
         return redirect(reverse('decoration_in_progress'))
+
+
+class MeterReadingListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    model = MeterReading
+    template_name = 'management/meter_reading_list.html'
+    context_object_name = 'readings'
+    paginate_by = 30
+
+    def get_queryset(self):
+        qs = MeterReading.objects.select_related(
+            'unit', 'unit__floor', 'unit__floor__building',
+            'unit__floor__building__estate', 'recorded_by'
+        )
+
+        estate_id = self.request.GET.get('estate')
+        building_id = self.request.GET.get('building')
+        reading_month = self.request.GET.get('reading_month')
+        meter_type = self.request.GET.get('meter_type')
+
+        if estate_id:
+            qs = qs.filter(unit__floor__building__estate_id=estate_id)
+        if building_id:
+            qs = qs.filter(unit__floor__building_id=building_id)
+        if reading_month:
+            try:
+                year, month = map(int, reading_month.split('-'))
+                qs = qs.filter(reading_month__year=year, reading_month__month=month)
+            except (ValueError, AttributeError):
+                pass
+        if meter_type:
+            qs = qs.filter(meter_type=meter_type)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['estates'] = Estate.objects.all()
+        context['buildings'] = Building.objects.select_related('estate').all()
+        context['meter_types'] = MeterReading.METER_TYPE_CHOICES
+        context['current_filters'] = {
+            'estate': self.request.GET.get('estate', ''),
+            'building': self.request.GET.get('building', ''),
+            'reading_month': self.request.GET.get('reading_month', ''),
+            'meter_type': self.request.GET.get('meter_type', ''),
+        }
+        context['batch_form'] = MeterReadingBatchForm()
+        context['total_readings'] = MeterReading.objects.count()
+        context['first_reading_count'] = MeterReading.objects.filter(is_first_reading=True).count()
+        return context
+
+
+class MeterReadingCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
+    model = MeterReading
+    form_class = MeterReadingForm
+    template_name = 'management/form.html'
+    success_url = reverse_lazy('meter_reading_list')
+
+    def form_valid(self, form):
+        form.instance.recorded_by = self.request.user
+        reading_month = form.cleaned_data.get('reading_month')
+        if reading_month:
+            form.instance.reading_month = reading_month.replace(day=1)
+        messages.success(self.request, "抄表记录录入成功！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "录入抄表记录"
+        return context
+
+
+class MeterReadingDetailView(LoginRequiredMixin, DetailView):
+    model = MeterReading
+    template_name = 'management/meter_reading_detail.html'
+    context_object_name = 'reading'
+
+    def get_queryset(self):
+        qs = MeterReading.objects.select_related(
+            'unit', 'unit__floor', 'unit__floor__building',
+            'unit__floor__building__estate', 'unit__owner', 'recorded_by'
+        )
+        if self.request.user.role == 'owner':
+            qs = qs.filter(unit__owner=self.request.user)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        previous = MeterReading.objects.filter(
+            unit=self.object.unit,
+            meter_type=self.object.meter_type,
+            reading_month__lt=self.object.reading_month
+        ).order_by('-reading_month').first()
+        context['previous_reading_obj'] = previous
+        context['change_rate'] = self.object.usage_change_rate
+        return context
+
+
+class MeterReadingUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
+    model = MeterReading
+    form_class = MeterReadingForm
+    template_name = 'management/form.html'
+    success_url = reverse_lazy('meter_reading_list')
+
+    def form_valid(self, form):
+        form.instance.recorded_by = self.request.user
+        reading_month = form.cleaned_data.get('reading_month')
+        if reading_month:
+            form.instance.reading_month = reading_month.replace(day=1)
+        if self.object.current_reading >= self.object.previous_reading:
+            form.instance.usage = form.instance.current_reading - form.instance.previous_reading
+        else:
+            form.instance.usage = 0
+        messages.success(self.request, "抄表记录更新成功！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "编辑抄表记录"
+        return context
+
+
+class MeterReadingDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
+    model = MeterReading
+    template_name = 'management/confirm_delete.html'
+    success_url = reverse_lazy('meter_reading_list')
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, "抄表记录已删除！")
+        return super().delete(request, *args, **kwargs)
+
+
+class MeterReadingBatchEntryView(LoginRequiredMixin, StaffRequiredMixin, TemplateView):
+    template_name = 'management/meter_reading_batch.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        batch_form = MeterReadingBatchForm(self.request.GET or None)
+        context['batch_form'] = batch_form
+        context['units_data'] = []
+
+        if batch_form.is_valid():
+            reading_month = batch_form.cleaned_data['reading_month']
+            meter_type = batch_form.cleaned_data['meter_type']
+            estate = batch_form.cleaned_data.get('estate')
+            building = batch_form.cleaned_data.get('building')
+
+            units_qs = Unit.objects.select_related(
+                'floor', 'floor__building', 'floor__building__estate', 'owner'
+            )
+            if estate:
+                units_qs = units_qs.filter(floor__building__estate=estate)
+            if building:
+                units_qs = units_qs.filter(floor__building=building)
+
+            existing_readings = {
+                r.unit_id: r for r in MeterReading.objects.filter(
+                    reading_month=reading_month,
+                    meter_type=meter_type,
+                    unit__in=units_qs.values_list('id', flat=True)
+                )
+            }
+
+            for unit in units_qs:
+                existing = existing_readings.get(unit.id)
+                previous = MeterReading.objects.filter(
+                    unit=unit,
+                    meter_type=meter_type,
+                    reading_month__lt=reading_month
+                ).order_by('-reading_month').first()
+                context['units_data'].append({
+                    'unit': unit,
+                    'existing': existing,
+                    'previous_reading': previous.current_reading if previous else 0,
+                    'is_first': previous is None,
+                    'current_reading': existing.current_reading if existing else '',
+                    'reading_id': existing.id if existing else None,
+                })
+            context['reading_month'] = reading_month
+            context['meter_type'] = meter_type
+            context['meter_type_display'] = dict(MeterReading.METER_TYPE_CHOICES).get(meter_type, '')
+        return context
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        reading_month_str = request.POST.get('reading_month')
+        meter_type = request.POST.get('meter_type')
+
+        if not reading_month_str or not meter_type:
+            messages.error(request, "请选择抄表月份和抄表类型")
+            return redirect(reverse('meter_reading_batch'))
+
+        try:
+            year, month = map(int, reading_month_str.split('-'))
+            reading_month = date(year, month, 1)
+        except (ValueError, AttributeError):
+            messages.error(request, "抄表月份格式错误")
+            return redirect(reverse('meter_reading_batch'))
+
+        unit_ids = request.POST.getlist('unit_id[]')
+        current_readings = request.POST.getlist('current_reading[]')
+        remarks_list = request.POST.getlist('remarks[]')
+
+        success_count = 0
+        skip_count = 0
+        error_count = 0
+
+        for idx, unit_id in enumerate(unit_ids):
+            try:
+                unit_id = int(unit_id)
+                reading_val = current_readings[idx] if idx < len(current_readings) else ''
+                remarks = remarks_list[idx] if idx < len(remarks_list) else ''
+
+                if not reading_val:
+                    skip_count += 1
+                    continue
+
+                try:
+                    reading_val = float(reading_val)
+                except ValueError:
+                    error_count += 1
+                    continue
+
+                existing = MeterReading.objects.filter(
+                    unit_id=unit_id,
+                    meter_type=meter_type,
+                    reading_month=reading_month
+                ).first()
+
+                if existing:
+                    existing.current_reading = reading_val
+                    if reading_val >= existing.previous_reading:
+                        existing.usage = reading_val - existing.previous_reading
+                    else:
+                        existing.usage = 0
+                    existing.remarks = remarks
+                    existing.recorded_by = request.user
+                    existing.save()
+                    success_count += 1
+                else:
+                    MeterReading.objects.create(
+                        unit_id=unit_id,
+                        meter_type=meter_type,
+                        reading_month=reading_month,
+                        current_reading=reading_val,
+                        remarks=remarks,
+                        recorded_by=request.user
+                    )
+                    success_count += 1
+            except Exception:
+                error_count += 1
+
+        msg = f"批量处理完成！成功 {success_count} 条"
+        if skip_count:
+            msg += f"，跳过空值 {skip_count} 条"
+        if error_count:
+            msg += f"，失败 {error_count} 条"
+        messages.success(request, msg)
+        return redirect(
+            reverse('meter_reading_list')
+            + f'?reading_month={reading_month_str}&meter_type={meter_type}'
+        )

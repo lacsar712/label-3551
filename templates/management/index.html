@@ -353,6 +353,107 @@
             </ul>
         </div>
     </div>
+
+    {% if meter_summary %}
+    <div class="col-md-12 mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">💧⚡ 近期水电用量（最近三期）</h5>
+            </div>
+            <div class="card-body">
+                {% for item in meter_summary %}
+                <div class="mb-4 {% if not forloop.last %}pb-4 border-bottom{% endif %}">
+                    <h6 class="fw-bold mb-3 text-primary">
+                        🏠 {{ item.unit.floor.building.estate.name }} - {{ item.unit.floor.building.name }} - {{ item.unit.floor.name }} - {{ item.unit.name }}
+                    </h6>
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="card border-info h-100">
+                                <div class="card-header bg-info bg-opacity-10 text-info fw-bold d-flex justify-content-between align-items-center">
+                                    <span>💧 水表用量（吨）</span>
+                                    {% if item.water_change is not None %}
+                                    <span class="badge {% if item.water_change > 0 %}bg-danger{% elif item.water_change < 0 %}bg-success{% else %}bg-secondary{% endif %}">
+                                        {% if item.water_change > 0 %}↑ +{% elif item.water_change < 0 %}↓ {% endif %}{{ item.water_change }}% 环比
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">首次/无对比</span>
+                                    {% endif %}
+                                </div>
+                                <div class="card-body p-0">
+                                    {% if item.water_recent %}
+                                    <table class="table table-sm mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>月份</th>
+                                                <th class="text-end">上期读数</th>
+                                                <th class="text-end">本期读数</th>
+                                                <th class="text-end">用量</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for r in item.water_recent %}
+                                            <tr>
+                                                <td>{{ r.month_display }}</td>
+                                                <td class="text-end text-muted">{{ r.previous_reading }}</td>
+                                                <td class="text-end fw-medium">{{ r.current_reading }}</td>
+                                                <td class="text-end fw-bold text-info">{{ r.usage }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                    {% else %}
+                                    <p class="text-center text-muted py-3 mb-0">暂无水表抄录数据</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-danger h-100">
+                                <div class="card-header bg-danger bg-opacity-10 text-danger fw-bold d-flex justify-content-between align-items-center">
+                                    <span>⚡ 电表用量（度）</span>
+                                    {% if item.electric_change is not None %}
+                                    <span class="badge {% if item.electric_change > 0 %}bg-danger{% elif item.electric_change < 0 %}bg-success{% else %}bg-secondary{% endif %}">
+                                        {% if item.electric_change > 0 %}↑ +{% elif item.electric_change < 0 %}↓ {% endif %}{{ item.electric_change }}% 环比
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">首次/无对比</span>
+                                    {% endif %}
+                                </div>
+                                <div class="card-body p-0">
+                                    {% if item.electric_recent %}
+                                    <table class="table table-sm mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>月份</th>
+                                                <th class="text-end">上期读数</th>
+                                                <th class="text-end">本期读数</th>
+                                                <th class="text-end">用量</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for r in item.electric_recent %}
+                                            <tr>
+                                                <td>{{ r.month_display }}</td>
+                                                <td class="text-end text-muted">{{ r.previous_reading }}</td>
+                                                <td class="text-end fw-medium">{{ r.current_reading }}</td>
+                                                <td class="text-end fw-bold text-danger">{{ r.usage }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                    {% else %}
+                                    <p class="text-center text-muted py-3 mb-0">暂无电表抄录数据</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
     <div class="col-md-12 mt-4">
         <div class="card shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">

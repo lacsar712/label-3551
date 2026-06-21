@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview
+from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview, MeterReading
 from datetime import date, timedelta, datetime
 from django.utils import timezone
 import random
@@ -674,4 +674,49 @@ class Command(BaseCommand):
         )
 
         self.stdout.write(self.style.SUCCESS(f"装修申请数据生成完成！共 {DecorationApplication.objects.count()} 条"))
+
+        # 15. 创建抄表数据
+        today = timezone.localdate()
+        units_for_meter = [u1, u2, u3]
+
+        for month_offset in range(3):
+            month_date = (today.replace(day=1) - timedelta(days=month_offset * 30)).replace(day=1)
+
+            for unit in units_for_meter:
+                for meter_type in ['water', 'electric']:
+                    prev_readings = MeterReading.objects.filter(
+                        unit=unit,
+                        meter_type=meter_type,
+                        reading_month__lt=month_date
+                    ).order_by('-reading_month')
+
+                    if prev_readings.exists():
+                        prev = prev_readings.first()
+                        prev_val = float(prev.current_reading)
+                    else:
+                        prev_val = 0.0
+
+                    if meter_type == 'water':
+                        usage = random.uniform(5, 25)
+                    else:
+                        usage = random.uniform(100, 400)
+
+                    if month_offset == 2 and not prev_readings.exists():
+                        current_val = round(usage, 2)
+                    else:
+                        current_val = round(prev_val + usage, 2)
+
+                    MeterReading.objects.create(
+                        unit=unit,
+                        meter_type=meter_type,
+                        reading_month=month_date,
+                        current_reading=current_val,
+                        previous_reading=prev_val,
+                        usage=round(current_val - prev_val, 2) if current_val >= prev_val else 0,
+                        is_first_reading=not prev_readings.exists(),
+                        recorded_by=random.choice([staff, admin]),
+                        remarks=''
+                    )
+
+        self.stdout.write(self.style.SUCCESS(f"抄表数据生成完成！共 {MeterReading.objects.count()} 条"))
 

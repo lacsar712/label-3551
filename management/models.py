@@ -656,3 +656,75 @@ class DecorationReview(models.Model):
         if self.reviewer and self.reviewer.role in ['admin', 'staff']:
             return f"物业工作人员 {self.reviewer.username}"
         return self.reviewer.username if self.reviewer else "未知"
+
+
+class MeterReading(models.Model):
+    METER_TYPE_CHOICES = (
+        ('water', '水表'),
+        ('electric', '电表'),
+    )
+
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, verbose_name="关联单元", related_name="meter_readings")
+    meter_type = models.CharField("抄表类型", max_length=10, choices=METER_TYPE_CHOICES)
+    reading_month = models.DateField("抄表月份(当月1号)")
+    current_reading = models.DecimalField("本期读数", max_digits=12, decimal_places=2, default=0.00)
+    previous_reading = models.DecimalField("上期读数", max_digits=12, decimal_places=2, default=0.00)
+    usage = models.DecimalField("本期用量", max_digits=12, decimal_places=2, default=0.00)
+    is_first_reading = models.BooleanField("是否首次抄录", default=False)
+
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="抄录人",
+        related_name="recorded_meter_readings",
+        limit_choices_to={'role__in': ['admin', 'staff']}
+    )
+    remarks = models.TextField("备注", blank=True, null=True)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        verbose_name = "抄表记录"
+        verbose_name_plural = "抄表管理"
+        unique_together = ['unit', 'meter_type', 'reading_month']
+        ordering = ['-reading_month', '-created_at']
+
+    def __str__(self):
+        return f"{self.unit} - {self.get_meter_type_display()} - {self.reading_month.strftime('%Y年%m月')}"
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            previous = MeterReading.objects.filter(
+                unit=self.unit,
+                meter_type=self.meter_type,
+                reading_month__lt=self.reading_month
+            ).order_by('-reading_month').first()
+            if previous:
+                self.previous_reading = previous.current_reading
+                self.is_first_reading = False
+            else:
+                self.previous_reading = 0
+                self.is_first_reading = True
+        if self.current_reading >= self.previous_reading:
+            self.usage = self.current_reading - self.previous_reading
+        else:
+            self.usage = 0
+        super().save(*args, **kwargs)
+
+    @property
+    def month_display(self):
+        return self.reading_month.strftime('%Y年%m月')
+
+    @property
+    def usage_change_rate(self):
+        previous = MeterReading.objects.filter(
+            unit=self.unit,
+            meter_type=self.meter_type,
+            reading_month__lt=self.reading_month
+        ).order_by('-reading_month').first()
+        if not previous or previous.usage == 0:
+            return None
+        rate = ((self.usage - previous.usage) / previous.usage) * 100
+        return round(rate, 2)

@@ -123,4 +123,12 @@ urlpatterns = [
     path('decoration/<int:pk>/comment/', views.DecorationCommentView.as_view(), name='decoration_comment'),
     path('decoration/<int:pk>/complete/', views.DecorationCompleteView.as_view(), name='decoration_complete'),
     path('decoration-in-progress/', views.DecorationInProgressListView.as_view(), name='decoration_in_progress'),
+
+    # 抄表管理
+    path('meter-reading/', views.MeterReadingListView.as_view(), name='meter_reading_list'),
+    path('meter-reading/add/', views.MeterReadingCreateView.as_view(), name='meter_reading_add'),
+    path('meter-reading/<int:pk>/', views.MeterReadingDetailView.as_view(), name='meter_reading_detail'),
+    path('meter-reading/<int:pk>/edit/', views.MeterReadingUpdateView.as_view(), name='meter_reading_edit'),
+    path('meter-reading/<int:pk>/delete/', views.MeterReadingDeleteView.as_view(), name='meter_reading_delete'),
+    path('meter-reading/batch/', views.MeterReadingBatchEntryView.as_view(), name='meter_reading_batch'),
 ]

@@ -1,5 +1,5 @@
 from django import forms
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview, MeterReading
 from django.utils import timezone
 
 class OwnerForm(forms.ModelForm):
@@ -431,3 +431,60 @@ class DecorationReviewCommentForm(forms.ModelForm):
         widgets = {
             'opinion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '请输入补充意见或材料说明'}),
         }
+
+
+class MeterReadingForm(forms.ModelForm):
+    class Meta:
+        model = MeterReading
+        fields = ['unit', 'meter_type', 'reading_month', 'current_reading', 'remarks']
+        widgets = {
+            'unit': forms.Select(attrs={'class': 'form-select'}),
+            'meter_type': forms.Select(attrs={'class': 'form-select'}),
+            'reading_month': forms.DateInput(attrs={'class': 'form-control', 'type': 'month'}),
+            'current_reading': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'remarks': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '选填，如抄表异常说明等'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance.pk:
+            today = timezone.localdate()
+            first_day = today.replace(day=1)
+            self.initial['reading_month'] = first_day.strftime('%Y-%m')
+
+
+class MeterReadingBatchForm(forms.Form):
+    reading_month = forms.DateField(
+        label="抄表月份",
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'month'})
+    )
+    meter_type = forms.ChoiceField(
+        label="抄表类型",
+        choices=MeterReading.METER_TYPE_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    estate = forms.ModelChoiceField(
+        label="楼盘",
+        queryset=Estate.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    building = forms.ModelChoiceField(
+        label="楼栋",
+        queryset=Building.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        today = timezone.localdate()
+        first_day = today.replace(day=1)
+        self.initial['reading_month'] = first_day.strftime('%Y-%m')
+
+    def clean(self):
+        cleaned_data = super().clean()
+        reading_month = cleaned_data.get('reading_month')
+        if reading_month:
+            cleaned_data['reading_month'] = reading_month.replace(day=1)
+        return cleaned_data
