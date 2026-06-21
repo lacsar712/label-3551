@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package
+from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration
 from datetime import date, timedelta, datetime
 from django.utils import timezone
 import random
@@ -301,4 +301,62 @@ class Command(BaseCommand):
         )
 
         self.stdout.write(self.style.SUCCESS("快递代收数据生成完成！"))
+
+        # 10. 创建社区活动数据
+        now = timezone.now()
+
+        act1 = CommunityActivity.objects.create(
+            title='社区亲子运动会',
+            location='小区中心广场',
+            start_time=now + timedelta(days=7, hours=9),
+            end_time=now + timedelta(days=7, hours=12),
+            max_participants=30,
+            registration_deadline=now + timedelta(days=5, hours=18),
+            description='为增进邻里感情，丰富社区文化生活，特举办亲子趣味运动会。活动设有亲子接力赛、拔河比赛、趣味投篮等多个项目，欢迎家长带着孩子一起来参加！',
+            notes='1. 请穿着运动服和运动鞋\n2. 自带饮用水和毛巾\n3. 6岁以下儿童需家长全程陪同\n4. 如遇雨天活动顺延',
+            publisher=admin
+        )
+
+        act2 = CommunityActivity.objects.create(
+            title='消防安全知识讲座',
+            location='物业服务中心二楼会议室',
+            start_time=now + timedelta(days=10, hours=14),
+            end_time=now + timedelta(days=10, hours=16),
+            max_participants=50,
+            registration_deadline=now + timedelta(days=8, hours=18),
+            description='邀请消防大队专业教官为业主讲解家庭消防安全知识，包括火灾预防、灭火器使用、逃生自救等实用技能。现场还有实操演练环节。',
+            notes='1. 讲座免费参加\n2. 请提前15分钟入场\n3. 现场提供灭火器实操体验',
+            publisher=staff
+        )
+
+        act3 = CommunityActivity.objects.create(
+            title='社区跳蚤市场',
+            location='小区东门花园',
+            start_time=now + timedelta(days=14, hours=10),
+            end_time=now + timedelta(days=14, hours=16),
+            max_participants=20,
+            registration_deadline=now + timedelta(days=12, hours=20),
+            description='闲置物品交换和义卖活动，业主可以申请摊位出售或交换闲置物品，培养环保节约意识，促进邻里交流。义卖所得将捐赠社区公益基金。',
+            notes='1. 每户限申请一个摊位\n2. 摊位免费，需自备摆摊用具\n3. 禁止售卖食品和违禁品\n4. 活动结束后请清理摊位',
+            publisher=staff
+        )
+
+        ActivityRegistration.objects.create(activity=act1, owner=owner1)
+        ActivityRegistration.objects.create(activity=act2, owner=owner1)
+        ActivityRegistration.objects.create(activity=act2, owner=owner2)
+        ActivityRegistration.objects.create(activity=act3, owner=owner2)
+
+        CommunityActivity.objects.create(
+            title='春季植树节活动',
+            location='小区绿化带',
+            start_time=now - timedelta(days=30, hours=9),
+            end_time=now - timedelta(days=30, hours=12),
+            max_participants=20,
+            registration_deadline=now - timedelta(days=32, hours=18),
+            description='春季绿化植树活动，业主可认领树苗在小区绿化带种植。',
+            notes='请穿着耐脏衣物，物业提供工具和树苗。',
+            publisher=admin
+        )
+
+        self.stdout.write(self.style.SUCCESS("社区活动数据生成完成！"))
 

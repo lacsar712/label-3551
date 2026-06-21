@@ -4,8 +4,8 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView, View
 from django.contrib import messages
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package
-from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm, ComplaintSuggestionForm, ComplaintReplyForm, PackageForm, PackagePickupForm
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration
+from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm, ComplaintSuggestionForm, ComplaintReplyForm, PackageForm, PackagePickupForm, CommunityActivityForm
 from django.views.generic import DetailView
 from django.utils import timezone
 from datetime import date
@@ -41,6 +41,7 @@ class IndexView(LoginRequiredMixin, TemplateView):
             context['pending_complaints'] = ComplaintSuggestion.objects.filter(status='pending').count()
             context['pending_packages'] = Package.objects.filter(status='pending').count()
             context['overdue_packages'] = Package.objects.filter(status='pending', arrival_time__lte=timezone.now() - timezone.timedelta(days=7)).count()
+            context['active_activities'] = CommunityActivity.objects.filter(end_time__gte=timezone.now()).count()
         else:
             context['my_units'] = Unit.objects.filter(owner=self.request.user)
             context['my_parking_spots'] = ParkingSpot.objects.filter(owner=self.request.user)
@@ -65,6 +66,15 @@ class IndexView(LoginRequiredMixin, TemplateView):
                 owner=self.request.user,
                 status='pending'
             ).order_by('-arrival_time')
+            now = timezone.now()
+            context['my_registered_activities'] = CommunityActivity.objects.filter(
+                end_time__gte=now,
+                registrations__owner=self.request.user
+            ).order_by('start_time')[:5]
+            context['available_activities'] = CommunityActivity.objects.filter(
+                end_time__gte=now,
+                registration_deadline__gte=now
+            ).order_by('start_time')[:5]
         return context
 
 # --- 楼盘管理 ---
@@ -948,3 +958,210 @@ class PackageDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
     def delete(self, request, *args, **kwargs):
         messages.success(request, "快递记录已删除！")
         return super().delete(request, *args, **kwargs)
+
+
+# --- 社区活动管理 ---
+class CommunityActivityListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    model = CommunityActivity
+    template_name = 'management/activity_list.html'
+    context_object_name = 'activities'
+    paginate_by = 20
+
+    def get_queryset(self):
+        tab = self.request.GET.get('tab', 'active')
+        now = timezone.now()
+        qs = CommunityActivity.objects.prefetch_related('registrations__owner')
+
+        search = self.request.GET.get('search')
+
+        if tab == 'active':
+            qs = qs.filter(end_time__gte=now)
+        elif tab == 'history':
+            qs = qs.filter(end_time__lt=now)
+
+        if search:
+            qs = qs.filter(title__icontains=search)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['current_tab'] = self.request.GET.get('tab', 'active')
+        context['current_filters'] = {
+            'search': self.request.GET.get('search', ''),
+        }
+        context['now'] = timezone.now()
+        return context
+
+    def get(self, request, *args, **kwargs):
+        if 'export' in request.GET and request.user.role in ['admin', 'staff']:
+            activity_id = request.GET.get('activity_id')
+            if activity_id:
+                activity = get_object_or_404(CommunityActivity, pk=activity_id)
+                response = HttpResponse(content_type='text/csv')
+                response['Content-Disposition'] = f'attachment; filename="activity_{activity_id}_registrations.csv"'
+                response.write('\xEF\xBB\xBF')
+
+                writer = csv.writer(response)
+                writer.writerow(['序号', '业主姓名', '联系电话', '报名时间'])
+
+                for idx, reg in enumerate(activity.registrations.select_related('owner').all(), 1):
+                    writer.writerow([
+                        idx,
+                        reg.owner.get_full_name() or reg.owner.username,
+                        reg.owner.phone or '-',
+                        reg.registered_at.strftime('%Y-%m-%d %H:%M'),
+                    ])
+                return response
+        return super().get(request, *args, **kwargs)
+
+
+class CommunityActivityCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
+    model = CommunityActivity
+    form_class = CommunityActivityForm
+    template_name = 'management/activity_form.html'
+    success_url = reverse_lazy('activity_list')
+
+    def form_valid(self, form):
+        form.instance.publisher = self.request.user
+        messages.success(self.request, "社区活动发布成功！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "发布社区活动"
+        context['is_editing'] = False
+        return context
+
+
+class CommunityActivityUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
+    model = CommunityActivity
+    form_class = CommunityActivityForm
+    template_name = 'management/activity_form.html'
+    success_url = reverse_lazy('activity_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, "活动信息更新成功！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "编辑社区活动"
+        context['is_editing'] = True
+        return context
+
+
+class CommunityActivityDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
+    model = CommunityActivity
+    template_name = 'management/confirm_delete.html'
+    success_url = reverse_lazy('activity_list')
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, "活动已删除！")
+        return super().delete(request, *args, **kwargs)
+
+
+class CommunityActivityDetailView(LoginRequiredMixin, DetailView):
+    model = CommunityActivity
+    template_name = 'management/activity_detail.html'
+    context_object_name = 'activity'
+
+    def get_queryset(self):
+        qs = CommunityActivity.objects.prefetch_related('registrations__owner')
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['now'] = timezone.now()
+        if self.request.user.role == 'owner':
+            context['has_registered'] = ActivityRegistration.objects.filter(
+                activity=self.object,
+                owner=self.request.user
+            ).exists()
+        return context
+
+
+class ActivityRegisterView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        activity = get_object_or_404(CommunityActivity, pk=pk)
+        now = timezone.now()
+
+        if now > activity.registration_deadline:
+            messages.error(request, "报名已截止！")
+            return redirect(reverse('owner_activity_detail', kwargs={'pk': activity.pk}))
+
+        if activity.is_full:
+            messages.error(request, "活动名额已满！")
+            return redirect(reverse('owner_activity_detail', kwargs={'pk': activity.pk}))
+
+        if ActivityRegistration.objects.filter(activity=activity, owner=request.user).exists():
+            messages.warning(request, "您已报名过此活动！")
+            return redirect(reverse('owner_activity_detail', kwargs={'pk': activity.pk}))
+
+        ActivityRegistration.objects.create(activity=activity, owner=request.user)
+        messages.success(request, "报名成功！")
+        return redirect(reverse('owner_activity_detail', kwargs={'pk': activity.pk}))
+
+
+class ActivityCancelRegistrationView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        activity = get_object_or_404(CommunityActivity, pk=pk)
+        registration = ActivityRegistration.objects.filter(activity=activity, owner=request.user).first()
+
+        if not registration:
+            messages.warning(request, "您尚未报名此活动！")
+            return redirect(reverse('owner_activity_detail', kwargs={'pk': activity.pk}))
+
+        if not activity.is_registration_open:
+            messages.error(request, "报名已截止，无法取消报名！")
+            return redirect(reverse('owner_activity_detail', kwargs={'pk': activity.pk}))
+
+        registration.delete()
+        messages.success(request, "已取消报名！")
+        return redirect(reverse('owner_activity_detail', kwargs={'pk': activity.pk}))
+
+
+class OwnerActivityListView(LoginRequiredMixin, ListView):
+    model = CommunityActivity
+    template_name = 'management/owner_activity_list.html'
+    context_object_name = 'activities'
+    paginate_by = 20
+
+    def get_queryset(self):
+        now = timezone.now()
+        qs = CommunityActivity.objects.filter(end_time__gte=now).prefetch_related('registrations').order_by('start_time')
+
+        search = self.request.GET.get('search')
+        if search:
+            qs = qs.filter(title__icontains=search)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search_query'] = self.request.GET.get('search', '')
+        now = timezone.now()
+
+        registered_ids = ActivityRegistration.objects.filter(
+            owner=self.request.user
+        ).values_list('activity_id', flat=True)
+        context['registered_ids'] = list(registered_ids)
+        context['now'] = now
+        return context
+
+
+class OwnerActivityDetailView(LoginRequiredMixin, DetailView):
+    model = CommunityActivity
+    template_name = 'management/owner_activity_detail.html'
+    context_object_name = 'activity'
+
+    def get_queryset(self):
+        return CommunityActivity.objects.prefetch_related('registrations__owner')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['now'] = timezone.now()
+        context['has_registered'] = ActivityRegistration.objects.filter(
+            activity=self.object,
+            owner=self.request.user
+        ).exists()
+        return context

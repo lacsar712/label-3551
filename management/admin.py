@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration
 
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
@@ -52,3 +52,21 @@ class PackageAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Package, PackageAdmin)
+
+
+class ActivityRegistrationInline(admin.TabularInline):
+    model = ActivityRegistration
+    extra = 0
+    readonly_fields = ('owner', 'registered_at')
+
+
+class CommunityActivityAdmin(admin.ModelAdmin):
+    list_display = ('title', 'location', 'start_time', 'end_time', 'max_participants', 'registration_deadline', 'publisher', 'created_at')
+    list_filter = ('publisher',)
+    search_fields = ('title', 'location', 'description')
+    date_hierarchy = 'created_at'
+    inlines = [ActivityRegistrationInline]
+
+
+admin.site.register(CommunityActivity, CommunityActivityAdmin)
+admin.site.register(ActivityRegistration)

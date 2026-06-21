@@ -88,4 +88,17 @@ urlpatterns = [
     path('package/<int:pk>/', views.PackageDetailView.as_view(), name='package_detail'),
     path('package/<int:pk>/pickup/', views.PackagePickupView.as_view(), name='package_pickup'),
     path('package/<int:pk>/delete/', views.PackageDeleteView.as_view(), name='package_delete'),
+
+    # 社区活动 - 管理端
+    path('activity/', views.CommunityActivityListView.as_view(), name='activity_list'),
+    path('activity/add/', views.CommunityActivityCreateView.as_view(), name='activity_add'),
+    path('activity/<int:pk>/edit/', views.CommunityActivityUpdateView.as_view(), name='activity_edit'),
+    path('activity/<int:pk>/delete/', views.CommunityActivityDeleteView.as_view(), name='activity_delete'),
+    path('activity/<int:pk>/', views.CommunityActivityDetailView.as_view(), name='activity_detail'),
+
+    # 社区活动 - 业主端
+    path('activities/', views.OwnerActivityListView.as_view(), name='owner_activity_list'),
+    path('activities/<int:pk>/', views.OwnerActivityDetailView.as_view(), name='owner_activity_detail'),
+    path('activities/<int:pk>/register/', views.ActivityRegisterView.as_view(), name='activity_register'),
+    path('activities/<int:pk>/cancel/', views.ActivityCancelRegistrationView.as_view(), name='activity_cancel'),
 ]

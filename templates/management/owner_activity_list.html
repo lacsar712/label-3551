@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}社区活动 - 智慧物业平台{% endblock %}
+
+{% block extra_css %}
+<style>
+    .activity-card {
+        transition: all 0.2s ease;
+        border-left: 4px solid transparent;
+    }
+    .activity-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-left-color: #0d6efd;
+    }
+    .activity-card.is-full {
+        border-left-color: #dc3545;
+    }
+    .activity-card.is-full:hover {
+        border-left-color: #dc3545;
+    }
+    .progress-thin {
+        height: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">社区活动</h1>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-8">
+                <input type="text" class="form-control" name="search" value="{{ search_query }}" placeholder="搜索活动名称...">
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">搜索</button>
+                <a href="{% url 'owner_activity_list' %}" class="btn btn-outline-secondary">重置</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4">
+    {% for activity in activities %}
+    <div class="col-md-6">
+        <div class="card shadow-sm activity-card {% if activity.is_full %}is-full{% endif %}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <a href="{% url 'owner_activity_detail' activity.pk %}" class="text-decoration-none">
+                        <h5 class="fw-bold mb-1 text-dark">{{ activity.title }}</h5>
+                    </a>
+                    {% if activity.pk in registered_ids %}
+                    <span class="badge bg-primary">已报名</span>
+                    {% elif activity.is_full %}
+                    <span class="badge bg-danger">已满员</span>
+                    {% elif not activity.is_registration_open %}
+                    <span class="badge bg-warning text-dark">报名截止</span>
+                    {% else %}
+                    <span class="badge bg-success">可报名</span>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-1">
+                        <span class="me-3">📍 {{ activity.location }}</span>
+                    </small>
+                    <small class="text-muted d-block mb-1">
+                        🕐 {{ activity.start_time|date:"Y-m-d H:i" }} ~ {{ activity.end_time|date:"H:i" }}
+                    </small>
+                    <small class="text-muted d-block">
+                        ⏰ 报名截止：{{ activity.registration_deadline|date:"Y-m-d H:i" }}
+                    </small>
+                </div>
+
+                {% if activity.description %}
+                <p class="text-muted small mb-3">{{ activity.description|truncatewords:30 }}</p>
+                {% endif %}
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1 me-3">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>报名进度</span>
+                            <span class="fw-semibold {% if activity.is_full %}text-danger{% else %}text-success{% endif %}">
+                                {{ activity.registrations.count }}/{{ activity.max_participants }}
+                            </span>
+                        </div>
+                        <div class="progress progress-thin">
+                            <div class="progress-bar {% if activity.is_full %}bg-danger{% else %}bg-success{% endif %}"
+                                 style="width: {% widthratio activity.registrations.count activity.max_participants 100 %}%"></div>
+                        </div>
+                    </div>
+                    <a href="{% url 'owner_activity_detail' activity.pk %}" class="btn btn-sm btn-outline-primary flex-shrink-0">
+                        查看详情
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="text-center text-muted py-5">
+            <p class="mb-0">暂无可报名的社区活动</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if is_paginated and page_obj.has_other_pages %}
+<div class="mt-4">
+    <nav>
+        <ul class="pagination pagination-sm justify-content-center mb-0">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">上一页</a>
+            </li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">下一页</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}
+{% endblock %}

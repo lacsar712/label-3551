@@ -310,6 +310,73 @@ class ParkingSpot(models.Model):
         return "已绑定" if self.is_bound else "未绑定"
 
 
+class CommunityActivity(models.Model):
+    title = models.CharField("活动名称", max_length=200)
+    location = models.CharField("活动地点", max_length=255)
+    start_time = models.DateTimeField("开始时间")
+    end_time = models.DateTimeField("结束时间")
+    max_participants = models.PositiveIntegerField("人数上限", default=50)
+    registration_deadline = models.DateTimeField("报名截止时间")
+    description = models.TextField("活动简介", blank=True, default='')
+    notes = models.TextField("注意事项", blank=True, default='')
+
+    publisher = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="发布人",
+        related_name="published_activities",
+        limit_choices_to={'role__in': ['admin', 'staff']}
+    )
+
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        verbose_name = "社区活动"
+        verbose_name_plural = "社区活动管理"
+        ordering = ['-start_time']
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def is_full(self):
+        return self.registrations.count() >= self.max_participants
+
+    @property
+    def remaining_slots(self):
+        return max(0, self.max_participants - self.registrations.count())
+
+    @property
+    def is_registration_open(self):
+        from django.utils import timezone
+        now = timezone.now()
+        return now <= self.registration_deadline and not self.is_full
+
+    @property
+    def is_ended(self):
+        from django.utils import timezone
+        return timezone.now() > self.end_time
+
+
+class ActivityRegistration(models.Model):
+    activity = models.ForeignKey(CommunityActivity, on_delete=models.CASCADE, verbose_name="所属活动", related_name="registrations")
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="报名业主", related_name="activity_registrations", limit_choices_to={'role': 'owner'})
+
+    registered_at = models.DateTimeField("报名时间", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "活动报名"
+        verbose_name_plural = "活动报名管理"
+        unique_together = ['activity', 'owner']
+        ordering = ['registered_at']
+
+    def __str__(self):
+        return f"{self.owner.username} - {self.activity.title}"
+
+
 class Package(models.Model):
     STATUS_CHOICES = (
         ('pending', '待领取'),

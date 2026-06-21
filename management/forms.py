@@ -1,5 +1,5 @@
 from django import forms
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity
 from django.utils import timezone
 
 class OwnerForm(forms.ModelForm):
@@ -229,3 +229,38 @@ class PackagePickupForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if not self.instance.pickup_time:
             self.initial['pickup_time'] = timezone.now().strftime('%Y-%m-%dT%H:%M')
+
+
+class CommunityActivityForm(forms.ModelForm):
+    class Meta:
+        model = CommunityActivity
+        fields = ['title', 'location', 'start_time', 'end_time', 'max_participants', 'registration_deadline', 'description', 'notes']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '请输入活动名称'}),
+            'location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '请输入活动地点'}),
+            'start_time': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'end_time': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'max_participants': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'registration_deadline': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5, 'placeholder': '请输入活动简介'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '请输入注意事项，如：请穿着运动鞋、自带饮用水等'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance.pk:
+            now = timezone.now()
+            self.initial['start_time'] = (now + timezone.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M')
+            self.initial['end_time'] = (now + timezone.timedelta(days=7, hours=3)).strftime('%Y-%m-%dT%H:%M')
+            self.initial['registration_deadline'] = (now + timezone.timedelta(days=5)).strftime('%Y-%m-%dT%H:%M')
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start_time = cleaned_data.get('start_time')
+        end_time = cleaned_data.get('end_time')
+        registration_deadline = cleaned_data.get('registration_deadline')
+        if start_time and end_time and start_time >= end_time:
+            raise forms.ValidationError("结束时间必须晚于开始时间")
+        if start_time and registration_deadline and registration_deadline >= start_time:
+            raise forms.ValidationError("报名截止时间必须早于活动开始时间")
+        return cleaned_data

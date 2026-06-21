@@ -91,6 +91,8 @@
                     </a>
                     <a href="{% url 'announcement_list' %}"
                         class="{% if 'announcement' in request.resolver_match.url_name %}active{% endif %}">公告管理</a>
+                    <a href="{% url 'activity_list' %}"
+                        class="{% if 'activity' in request.resolver_match.url_name %}active{% endif %}">活动管理</a>
                     {% endif %}
 
                     {% if request.user.role == 'owner' %}
@@ -98,6 +100,8 @@
                         class="{% if 'package' in request.resolver_match.url_name %}active{% endif %}">📦 我的快递</a>
                     <a href="{% url 'owner_announcement_list' %}"
                         class="{% if 'owner_announcement' in request.resolver_match.url_name %}active{% endif %}">📢 社区公告</a>
+                    <a href="{% url 'owner_activity_list' %}"
+                        class="{% if 'owner_activity' in request.resolver_match.url_name %}active{% endif %}">🎉 社区活动</a>
                     {% endif %}
 
                     <hr class="text-white">
