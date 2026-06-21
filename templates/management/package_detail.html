@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}快递详情 - 智慧物业平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">快递详情</h1>
+    <div>
+        <a href="{% url 'package_list' %}" class="btn btn-outline-secondary me-2">返回列表</a>
+        {% if request.user.role == 'admin' or request.user.role == 'staff' and package.status == 'pending' %}
+        <a href="{% url 'package_pickup' package.pk %}" class="btn btn-success me-2">标记取件</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">包裹信息</h5>
+                {% if package.status == 'pending' %}
+                    {% if package.is_overdue %}
+                    <span class="badge bg-danger">超期未取 ({{ package.days_pending }}天)</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark">待领取</span>
+                    {% endif %}
+                {% else %}
+                <span class="badge bg-success">已领取</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tbody>
+                        <tr>
+                            <th style="width: 120px;">快递公司</th>
+                            <td>{{ package.get_courier_company_display }}</td>
+                        </tr>
+                        <tr>
+                            <th>单号后四位</th>
+                            <td>****{{ package.tracking_last4 }}</td>
+                        </tr>
+                        <tr>
+                            <th>收件业主</th>
+                            <td>{{ package.owner.username }}</td>
+                        </tr>
+                        <tr>
+                            <th>关联房号</th>
+                            <td>
+                                {% if package.unit %}
+                                {{ package.unit.floor.building.estate.name }} - {{ package.unit.floor.building.name }} - {{ package.unit.name }}
+                                {% else %}
+                                <span class="text-muted">未关联</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>包裹规格</th>
+                            <td>
+                                <span class="badge
+                                    {% if package.package_size == 'small' %}bg-secondary
+                                    {% elif package.package_size == 'medium' %}bg-primary
+                                    {% elif package.package_size == 'large' %}bg-warning text-dark
+                                    {% else %}bg-danger{% endif %}">
+                                    {{ package.get_package_size_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>存放位置</th>
+                            <td>{{ package.storage_location }}</td>
+                        </tr>
+                        <tr>
+                            <th>到达时间</th>
+                            <td>{{ package.arrival_time|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <th>登记人</th>
+                            <td>{{ package.register_staff.username|default:"-" }}</td>
+                        </tr>
+                        {% if package.remarks %}
+                        <tr>
+                            <th>备注</th>
+                            <td>{{ package.remarks }}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        {% if package.status == 'picked_up' %}
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0">领取信息</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tbody>
+                        <tr>
+                            <th style="width: 80px;">领取时间</th>
+                            <td>{{ package.pickup_time|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <th>经办人</th>
+                            <td>{{ package.handler.username|default:"-" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="card shadow-sm border-warning">
+            <div class="card-header bg-warning bg-opacity-10">
+                <h5 class="mb-0">温馨提示</h5>
+            </div>
+            <div class="card-body">
+                {% if package.is_overdue %}
+                <div class="text-danger">
+                    <p><strong>⚠️ 该包裹已存放超过 7 天，请尽快领取！</strong></p>
+                    <p>已存放 {{ package.days_pending }} 天</p>
+                </div>
+                {% else %}
+                <p class="mb-0">请携带有效身份证件前往物业处领取包裹。</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

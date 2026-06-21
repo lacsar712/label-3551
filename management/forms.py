@@ -1,5 +1,5 @@
 from django import forms
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package
 from django.utils import timezone
 
 class OwnerForm(forms.ModelForm):
@@ -195,3 +195,37 @@ class ComplaintReplyForm(forms.ModelForm):
         widgets = {
             'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '请输入回复内容'}),
         }
+
+
+class PackageForm(forms.ModelForm):
+    class Meta:
+        model = Package
+        fields = ['owner', 'unit', 'courier_company', 'tracking_last4', 'package_size', 'storage_location', 'remarks']
+        widgets = {
+            'owner': forms.Select(attrs={'class': 'form-select'}),
+            'unit': forms.Select(attrs={'class': 'form-select'}),
+            'courier_company': forms.Select(attrs={'class': 'form-select'}),
+            'tracking_last4': forms.TextInput(attrs={'class': 'form-control', 'maxlength': '4', 'placeholder': '请输入单号后四位'}),
+            'package_size': forms.Select(attrs={'class': 'form-select'}),
+            'storage_location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '如：1栋快递柜A区03号'}),
+            'remarks': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '选填，如易碎品、冷藏等特殊说明'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['owner'].queryset = User.objects.filter(role='owner')
+        self.fields['unit'].queryset = Unit.objects.all()
+
+
+class PackagePickupForm(forms.ModelForm):
+    class Meta:
+        model = Package
+        fields = ['pickup_time']
+        widgets = {
+            'pickup_time': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance.pickup_time:
+            self.initial['pickup_time'] = timezone.now().strftime('%Y-%m-%dT%H:%M')

@@ -4,8 +4,8 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView, View
 from django.contrib import messages
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply
-from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm, ComplaintSuggestionForm, ComplaintReplyForm
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package
+from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm, ComplaintSuggestionForm, ComplaintReplyForm, PackageForm, PackagePickupForm
 from django.views.generic import DetailView
 from django.utils import timezone
 from datetime import date
@@ -39,6 +39,8 @@ class IndexView(LoginRequiredMixin, TemplateView):
             context['visiting_count'] = Visitor.objects.filter(status='visiting').count()
             context['draft_announcements'] = Announcement.objects.filter(status='draft').count()
             context['pending_complaints'] = ComplaintSuggestion.objects.filter(status='pending').count()
+            context['pending_packages'] = Package.objects.filter(status='pending').count()
+            context['overdue_packages'] = Package.objects.filter(status='pending', arrival_time__lte=timezone.now() - timezone.timedelta(days=7)).count()
         else:
             context['my_units'] = Unit.objects.filter(owner=self.request.user)
             context['my_parking_spots'] = ParkingSpot.objects.filter(owner=self.request.user)
@@ -59,6 +61,10 @@ class IndexView(LoginRequiredMixin, TemplateView):
                 effective_start_date__lte=today,
                 effective_end_date__gte=today
             ).order_by('-is_pinned', '-publish_time')[:10]
+            context['my_pending_packages'] = Package.objects.filter(
+                owner=self.request.user,
+                status='pending'
+            ).order_by('-arrival_time')
         return context
 
 # --- 楼盘管理 ---
@@ -840,3 +846,105 @@ class ComplaintCloseView(LoginRequiredMixin, StaffRequiredMixin, View):
         complaint.save()
         messages.success(request, "工单已关闭！")
         return redirect(reverse('complaint_detail', kwargs={'pk': complaint.pk}))
+
+
+# --- 快递代收管理 ---
+class PackageListView(LoginRequiredMixin, ListView):
+    model = Package
+    template_name = 'management/package_list.html'
+    context_object_name = 'packages'
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = Package.objects.select_related('owner', 'unit', 'register_staff', 'handler')
+        if self.request.user.role == 'owner':
+            qs = qs.filter(owner=self.request.user)
+
+        status = self.request.GET.get('status')
+        owner_id = self.request.GET.get('owner')
+        arrival_date = self.request.GET.get('arrival_date')
+
+        if status:
+            qs = qs.filter(status=status)
+        if owner_id and self.request.user.role in ['admin', 'staff']:
+            qs = qs.filter(owner_id=owner_id)
+        if arrival_date:
+            qs = qs.filter(arrival_time__date=arrival_date)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['statuses'] = Package.STATUS_CHOICES
+        context['current_filters'] = {
+            'status': self.request.GET.get('status', ''),
+            'owner': self.request.GET.get('owner', ''),
+            'arrival_date': self.request.GET.get('arrival_date', ''),
+        }
+        if self.request.user.role in ['admin', 'staff']:
+            context['owners'] = User.objects.filter(role='owner')
+            context['pending_count'] = Package.objects.filter(status='pending').count()
+            context['picked_up_count'] = Package.objects.filter(status='picked_up').count()
+            seven_days_ago = timezone.now() - timezone.timedelta(days=7)
+            context['overdue_count'] = Package.objects.filter(status='pending', arrival_time__lte=seven_days_ago).count()
+        return context
+
+
+class PackageCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
+    model = Package
+    form_class = PackageForm
+    template_name = 'management/package_form.html'
+    success_url = reverse_lazy('package_list')
+
+    def form_valid(self, form):
+        form.instance.register_staff = self.request.user
+        messages.success(self.request, "快递登记成功！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "快递登记"
+        context['is_editing'] = False
+        return context
+
+
+class PackageDetailView(LoginRequiredMixin, DetailView):
+    model = Package
+    template_name = 'management/package_detail.html'
+    context_object_name = 'package'
+
+    def get_queryset(self):
+        qs = Package.objects.select_related('owner', 'unit', 'register_staff', 'handler')
+        if self.request.user.role == 'owner':
+            qs = qs.filter(owner=self.request.user)
+        return qs
+
+
+class PackagePickupView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
+    model = Package
+    form_class = PackagePickupForm
+    template_name = 'management/package_form.html'
+    success_url = reverse_lazy('package_list')
+
+    def form_valid(self, form):
+        form.instance.status = 'picked_up'
+        form.instance.handler = self.request.user
+        messages.success(self.request, "快递已标记为已领取！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "标记取件"
+        context['is_editing'] = True
+        context['is_pickup'] = True
+        return context
+
+
+class PackageDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
+    model = Package
+    template_name = 'management/confirm_delete.html'
+    success_url = reverse_lazy('package_list')
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, "快递记录已删除！")
+        return super().delete(request, *args, **kwargs)

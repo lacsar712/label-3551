@@ -82,11 +82,20 @@
                     {% if request.user.role == 'admin' or request.user.role == 'staff' %}
                     <a href="{% url 'visitor_list' %}"
                         class="{% if 'visitor' in request.resolver_match.url_name %}active{% endif %}">访客登记中心</a>
+                    <a href="{% url 'package_list' %}"
+                        class="{% if 'package' in request.resolver_match.url_name %}active{% endif %}">
+                        快递代收
+                        {% if pending_packages %}
+                        <span class="badge bg-warning text-dark ms-1">{{ pending_packages }}</span>
+                        {% endif %}
+                    </a>
                     <a href="{% url 'announcement_list' %}"
                         class="{% if 'announcement' in request.resolver_match.url_name %}active{% endif %}">公告管理</a>
                     {% endif %}
 
                     {% if request.user.role == 'owner' %}
+                    <a href="{% url 'package_list' %}"
+                        class="{% if 'package' in request.resolver_match.url_name %}active{% endif %}">📦 我的快递</a>
                     <a href="{% url 'owner_announcement_list' %}"
                         class="{% if 'owner_announcement' in request.resolver_match.url_name %}active{% endif %}">📢 社区公告</a>
                     {% endif %}

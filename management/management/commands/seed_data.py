@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply
+from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package
 from datetime import date, timedelta, datetime
 from django.utils import timezone
 import random
@@ -236,4 +236,69 @@ class Command(BaseCommand):
             complaint=cs4, replier=owner2,
             content='好的，希望后续不再有夜间施工的情况，谢谢处理。'
         )
+
+        # 9. 创建快递代收数据
+        now = timezone.now()
+
+        Package.objects.create(
+            owner=owner1,
+            unit=u1,
+            courier_company='sf',
+            tracking_last4='1234',
+            package_size='medium',
+            storage_location='1栋快递柜A区03号',
+            arrival_time=now - timedelta(hours=2),
+            register_staff=staff,
+            remarks='易碎品，请轻拿轻放'
+        )
+
+        Package.objects.create(
+            owner=owner1,
+            unit=u1,
+            courier_company='jd',
+            tracking_last4='5678',
+            package_size='large',
+            storage_location='1栋物业前台',
+            arrival_time=now - timedelta(days=1),
+            register_staff=staff
+        )
+
+        Package.objects.create(
+            owner=owner2,
+            unit=u2,
+            courier_company='zt',
+            tracking_last4='9012',
+            package_size='small',
+            storage_location='2栋快递柜B区15号',
+            arrival_time=now - timedelta(days=3),
+            register_staff=staff
+        )
+
+        Package.objects.create(
+            owner=owner2,
+            unit=u2,
+            courier_company='yt',
+            tracking_last4='3456',
+            package_size='medium',
+            storage_location='2栋快递柜B区22号',
+            arrival_time=now - timedelta(days=8),
+            register_staff=staff,
+            status='picked_up',
+            pickup_time=now - timedelta(days=6),
+            handler=staff
+        )
+
+        Package.objects.create(
+            owner=owner1,
+            unit=u1,
+            courier_company='ems',
+            tracking_last4='7890',
+            package_size='extra_large',
+            storage_location='1栋物业大件存放区',
+            arrival_time=now - timedelta(days=10),
+            register_staff=staff,
+            remarks='大件包裹，请业主安排人手'
+        )
+
+        self.stdout.write(self.style.SUCCESS("快递代收数据生成完成！"))
 

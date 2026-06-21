@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package
 
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
@@ -41,3 +41,14 @@ class ComplaintSuggestionAdmin(admin.ModelAdmin):
 
 admin.site.register(ComplaintSuggestion, ComplaintSuggestionAdmin)
 admin.site.register(ComplaintReply)
+
+
+class PackageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'courier_company', 'tracking_last4', 'owner', 'package_size', 'storage_location', 'status', 'arrival_time', 'pickup_time')
+    list_filter = ('status', 'courier_company', 'package_size')
+    search_fields = ('tracking_last4', 'owner__username', 'storage_location')
+    date_hierarchy = 'arrival_time'
+    readonly_fields = ('arrival_time', 'register_staff', 'pickup_time', 'handler')
+
+
+admin.site.register(Package, PackageAdmin)

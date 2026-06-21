@@ -81,4 +81,11 @@ urlpatterns = [
     path('complaint/<int:pk>/', views.ComplaintDetailView.as_view(), name='complaint_detail'),
     path('complaint/<int:pk>/reply/', views.ComplaintReplyView.as_view(), name='complaint_reply'),
     path('complaint/<int:pk>/close/', views.ComplaintCloseView.as_view(), name='complaint_close'),
+
+    # 快递代收
+    path('package/', views.PackageListView.as_view(), name='package_list'),
+    path('package/add/', views.PackageCreateView.as_view(), name='package_add'),
+    path('package/<int:pk>/', views.PackageDetailView.as_view(), name='package_detail'),
+    path('package/<int:pk>/pickup/', views.PackagePickupView.as_view(), name='package_pickup'),
+    path('package/<int:pk>/delete/', views.PackageDeleteView.as_view(), name='package_delete'),
 ]

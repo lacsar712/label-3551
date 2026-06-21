@@ -308,3 +308,70 @@ class ParkingSpot(models.Model):
     @property
     def status_text(self):
         return "已绑定" if self.is_bound else "未绑定"
+
+
+class Package(models.Model):
+    STATUS_CHOICES = (
+        ('pending', '待领取'),
+        ('picked_up', '已领取'),
+    )
+
+    SIZE_CHOICES = (
+        ('small', '小件'),
+        ('medium', '中件'),
+        ('large', '大件'),
+        ('extra_large', '超大件'),
+    )
+
+    COURIER_CHOICES = (
+        ('sf', '顺丰速运'),
+        ('jd', '京东物流'),
+        ('zt', '中通快递'),
+        ('yt', '圆通速递'),
+        ('yd', '韵达快递'),
+        ('ems', 'EMS'),
+        ('db', '德邦快递'),
+        ('sto', '申通快递'),
+        ('other', '其他'),
+    )
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="收件业主", related_name="packages", limit_choices_to={'role': 'owner'})
+    unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="关联房号", related_name="packages")
+    courier_company = models.CharField("快递公司", max_length=20, choices=COURIER_CHOICES)
+    tracking_last4 = models.CharField("单号后四位", max_length=4)
+    package_size = models.CharField("包裹规格", max_length=20, choices=SIZE_CHOICES, default='medium')
+    storage_location = models.CharField("存放位置", max_length=100)
+    arrival_time = models.DateTimeField("到达时间", auto_now_add=True)
+    remarks = models.TextField("备注", blank=True, null=True)
+
+    status = models.CharField("状态", max_length=20, choices=STATUS_CHOICES, default='pending')
+    pickup_time = models.DateTimeField("领取时间", null=True, blank=True)
+    handler = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="经办人", related_name="handled_packages", limit_choices_to={'role__in': ['admin', 'staff']})
+
+    register_staff = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="登记人", related_name="registered_packages", limit_choices_to={'role__in': ['admin', 'staff']})
+
+    class Meta:
+        verbose_name = "快递包裹"
+        verbose_name_plural = "快递代收管理"
+        ordering = ['-arrival_time']
+
+    def __str__(self):
+        return f"{self.get_courier_company_display()} - {self.tracking_last4} - {self.owner.username}"
+
+    @property
+    def is_overdue(self):
+        from django.utils import timezone
+        if self.status == 'picked_up':
+            return False
+        now = timezone.now()
+        delta = now - self.arrival_time
+        return delta.days >= 7
+
+    @property
+    def days_pending(self):
+        from django.utils import timezone
+        if self.status == 'picked_up':
+            return 0
+        now = timezone.now()
+        delta = now - self.arrival_time
+        return delta.days
