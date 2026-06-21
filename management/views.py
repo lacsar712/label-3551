@@ -4,8 +4,11 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView
 from django.contrib import messages
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee
-from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor
+from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm
+from django.views.generic import DetailView
+from django.utils import timezone
+from datetime import date
 import csv
 from django.http import HttpResponse
 
@@ -32,10 +35,16 @@ class IndexView(LoginRequiredMixin, TemplateView):
             context['owner_count'] = User.objects.filter(role='owner').count()
             context['pending_repairs'] = Repair.objects.filter(status='pending').count()
             context['unpaid_fees'] = Fee.objects.filter(status='unpaid').count()
+            context['visiting_count'] = Visitor.objects.filter(status='visiting').count()
         else:
             context['my_units'] = Unit.objects.filter(owner=self.request.user)
             context['my_repairs'] = Repair.objects.filter(owner=self.request.user).order_by('-submit_time')[:5]
             context['unpaid_fees'] = Fee.objects.filter(unit__owner=self.request.user, status='unpaid')
+            today = date.today()
+            context['today_visitors'] = Visitor.objects.filter(
+                owner=self.request.user,
+                register_time__date=today
+            ).order_by('-register_time')
         return context
 
 # --- 楼盘管理 ---
@@ -359,3 +368,78 @@ class FeeDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
     model = Fee
     template_name = 'management/confirm_delete.html'
     success_url = reverse_lazy('fee_list')
+
+class VisitorListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    model = Visitor
+    template_name = 'management/visitor_list.html'
+    context_object_name = 'visitors'
+
+    def get_queryset(self):
+        qs = Visitor.objects.all()
+        
+        visit_date = self.request.GET.get('visit_date')
+        owner_id = self.request.GET.get('owner')
+        status = self.request.GET.get('status')
+        
+        if visit_date:
+            qs = qs.filter(register_time__date=visit_date)
+        if owner_id:
+            qs = qs.filter(owner_id=owner_id)
+        if status:
+            qs = qs.filter(status=status)
+            
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['owners'] = User.objects.filter(role='owner')
+        context['statuses'] = Visitor.STATUS_CHOICES
+        context['current_filters'] = {
+            'visit_date': self.request.GET.get('visit_date', ''),
+            'owner': self.request.GET.get('owner', ''),
+            'status': self.request.GET.get('status', ''),
+        }
+        return context
+
+class VisitorCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
+    model = Visitor
+    form_class = VisitorForm
+    template_name = 'management/form.html'
+    success_url = reverse_lazy('visitor_list')
+
+    def form_valid(self, form):
+        form.instance.register_staff = self.request.user
+        messages.success(self.request, "访客登记成功！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "访客登记"
+        return context
+
+class VisitorDetailView(LoginRequiredMixin, DetailView):
+    model = Visitor
+    template_name = 'management/visitor_detail.html'
+    context_object_name = 'visitor'
+
+    def get_queryset(self):
+        qs = Visitor.objects.all()
+        if self.request.user.role == 'owner':
+            qs = qs.filter(owner=self.request.user)
+        return qs
+
+class VisitorLeaveView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
+    model = Visitor
+    form_class = VisitorLeaveForm
+    template_name = 'management/form.html'
+    success_url = reverse_lazy('visitor_list')
+
+    def form_valid(self, form):
+        form.instance.status = 'left'
+        messages.success(self.request, "访客已标记离场！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "标记访客离场"
+        return context

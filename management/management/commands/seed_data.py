@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
-from management.models import User, Estate, Building, Floor, Unit, Repair, Fee
-from datetime import date, timedelta
+from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor
+from datetime import date, timedelta, datetime
 import random
 
 class Command(BaseCommand):
@@ -55,6 +55,28 @@ class Command(BaseCommand):
             unit=u2, fee_type='water', amount=85.0,
             due_date=today - timedelta(days=5), status='paid',
             payment_date=today - timedelta(days=10), payment_method='wechat'
+        )
+        
+        # 5. 创建访客数据
+        now = datetime.now()
+        Visitor.objects.create(
+            name='张三', phone='13812345678', id_card_last4='1234',
+            owner=owner1, unit=u1, visit_reason='亲友拜访',
+            estimated_duration=120, estimated_leave_time=now + timedelta(hours=2),
+            register_staff=staff
+        )
+        Visitor.objects.create(
+            name='李四', phone='13987654321', id_card_last4='5678',
+            owner=owner2, unit=u2, visit_reason='快递配送',
+            estimated_duration=30, estimated_leave_time=now + timedelta(minutes=30),
+            register_staff=staff
+        )
+        Visitor.objects.create(
+            name='王五', phone='13611112222', id_card_last4='9012',
+            owner=owner1, unit=u1, visit_reason='家政服务',
+            estimated_duration=180, estimated_leave_time=now + timedelta(hours=3),
+            actual_leave_time=now + timedelta(hours=2, minutes=30),
+            status='left', register_staff=staff
         )
         
         self.stdout.write(self.style.SUCCESS("Database seeded successfully!"))

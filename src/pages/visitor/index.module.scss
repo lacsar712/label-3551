@@ -1,0 +1,114 @@
+.page {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.addBtn {
+  background: #2563eb;
+  color: #fff;
+  font-size: 14px;
+  padding: 8px 14px;
+  border-radius: 8px;
+}
+
+.filters {
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.filterText {
+  display: block;
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.item {
+  background: #fff;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.name {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.statusActive,
+.statusLeft {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.statusActive {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.statusLeft {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.meta {
+  display: block;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.detailBtn,
+.leaveBtn {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  padding: 8px 0;
+  border-radius: 8px;
+}
+
+.detailBtn {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.leaveBtn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.empty {
+  display: block;
+  text-align: center;
+  color: #9ca3af;
+  padding: 40px 0;
+}

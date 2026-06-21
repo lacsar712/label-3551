@@ -1,5 +1,6 @@
 from django import forms
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor
+from django.utils import timezone
 
 class OwnerForm(forms.ModelForm):
     class Meta:
@@ -90,3 +91,39 @@ class FeeForm(forms.ModelForm):
             'payment_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'payment_method': forms.Select(attrs={'class': 'form-select'}),
         }
+
+class VisitorForm(forms.ModelForm):
+    class Meta:
+        model = Visitor
+        fields = ['name', 'phone', 'id_card_last4', 'owner', 'unit', 'visit_reason', 'estimated_duration', 'estimated_leave_time']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'id_card_last4': forms.TextInput(attrs={'class': 'form-control', 'maxlength': '4'}),
+            'owner': forms.Select(attrs={'class': 'form-select'}),
+            'unit': forms.Select(attrs={'class': 'form-select'}),
+            'visit_reason': forms.TextInput(attrs={'class': 'form-control'}),
+            'estimated_duration': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'estimated_leave_time': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['owner'].queryset = User.objects.filter(role='owner')
+        self.fields['unit'].queryset = Unit.objects.all()
+        if not self.instance.pk:
+            self.initial['estimated_leave_time'] = (timezone.now() + timezone.timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M')
+            self.initial['estimated_duration'] = 120
+
+class VisitorLeaveForm(forms.ModelForm):
+    class Meta:
+        model = Visitor
+        fields = ['actual_leave_time']
+        widgets = {
+            'actual_leave_time': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance.actual_leave_time:
+            self.initial['actual_leave_time'] = timezone.now().strftime('%Y-%m-%dT%H:%M')

@@ -41,6 +41,14 @@
             </div>
         </div>
     </div>
+    <div class="col-md-3">
+        <div class="card text-bg-info shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">当前在访访客</h5>
+                <p class="card-text fs-2">{{ visiting_count }}</p>
+            </div>
+        </div>
+    </div>
     {% else %}
     <div class="col-md-6">
         <div class="card shadow-sm h-100">
@@ -76,6 +84,48 @@
             </ul>
         </div>
     </div>
+    <div class="col-md-12 mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">今日访客</h5>
+            </div>
+            <div class="card-body">
+                {% if today_visitors %}
+                <div class="row g-3">
+                    {% for visitor in today_visitors %}
+                    <div class="col-md-4">
+                        <div class="card h-100 border-primary">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-0">{{ visitor.name }}</h6>
+                                    {% if visitor.status == 'visiting' %}
+                                    <span class="badge bg-success">在访</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">已离场</span>
+                                    {% endif %}
+                                </div>
+                                <p class="card-text small text-muted mb-1">
+                                    <strong>来访事由:</strong> {{ visitor.visit_reason }}
+                                </p>
+                                <p class="card-text small text-muted mb-1">
+                                    <strong>到访房号:</strong> {{ visitor.unit.floor.building.name }}-{{ visitor.unit.name }}
+                                </p>
+                                <p class="card-text small text-muted mb-2">
+                                    <strong>登记时间:</strong> {{ visitor.register_time|date:"H:i" }}
+                                </p>
+                                <a href="{% url 'visitor_detail' visitor.pk %}" class="btn btn-sm btn-outline-primary w-100">查看详情</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3 mb-0">今日暂无访客到访</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
     <div class="col-md-12 mt-4">
         <div class="card shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">

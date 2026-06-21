@@ -134,3 +134,34 @@ class Fee(models.Model):
 
     def __str__(self):
         return f"{self.unit} - {self.get_fee_type_display()} - {self.amount}元"
+
+class Visitor(models.Model):
+    STATUS_CHOICES = (
+        ('visiting', '在访'),
+        ('left', '已离场'),
+    )
+    
+    name = models.CharField("访客姓名", max_length=50)
+    phone = models.CharField("联系电话", max_length=20)
+    id_card_last4 = models.CharField("身份证后四位", max_length=4)
+    
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="拜访业主", related_name="visitors", limit_choices_to={'role': 'owner'})
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, verbose_name="关联房号", related_name="visitors")
+    
+    visit_reason = models.CharField("来访事由", max_length=200)
+    estimated_duration = models.IntegerField("预计停留时长(分钟)")
+    estimated_leave_time = models.DateTimeField("预计离开时间")
+    
+    actual_leave_time = models.DateTimeField("实际离开时间", null=True, blank=True)
+    status = models.CharField("状态", max_length=20, choices=STATUS_CHOICES, default='visiting')
+    
+    register_time = models.DateTimeField("登记时间", auto_now_add=True)
+    register_staff = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="登记人", related_name="registered_visitors", limit_choices_to={'role__in': ['admin', 'staff']})
+    
+    class Meta:
+        verbose_name = "访客记录"
+        verbose_name_plural = "访客管理"
+        ordering = ['-register_time']
+    
+    def __str__(self):
+        return f"{self.name} - 拜访{self.owner.username}"

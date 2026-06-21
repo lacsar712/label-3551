@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}访客详情 - 智慧物业平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">访客详情</h1>
+    <div>
+        {% if request.user.role in 'admin,staff' %}
+        <a href="{% url 'visitor_list' %}" class="btn btn-outline-secondary">返回列表</a>
+        {% else %}
+        <a href="{% url 'index' %}" class="btn btn-outline-secondary">返回首页</a>
+        {% endif %}
+        {% if visitor.status == 'visiting' and request.user.role in 'admin,staff' %}
+        <a href="{% url 'visitor_leave' visitor.pk %}" class="btn btn-warning ms-2">标记离场</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">访客基本信息</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th class="text-muted" style="width: 30%;">访客姓名</th>
+                        <td>{{ visitor.name }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">联系电话</th>
+                        <td>{{ visitor.phone }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">身份证后四位</th>
+                        <td>{{ visitor.id_card_last4 }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">来访事由</th>
+                        <td>{{ visitor.visit_reason }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">拜访信息</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th class="text-muted" style="width: 30%;">拜访业主</th>
+                        <td>{{ visitor.owner.username }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">关联房号</th>
+                        <td>{{ visitor.unit.floor.building.estate.name }} - {{ visitor.unit.floor.building.name }} - {{ visitor.unit.name }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">登记人</th>
+                        <td>{{ visitor.register_staff.username|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">登记时间</th>
+                        <td>{{ visitor.register_time|date:"Y-m-d H:i:s" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">时间信息</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th class="text-muted" style="width: 30%;">预计停留时长</th>
+                        <td>{{ visitor.estimated_duration }} 分钟</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">预计离开时间</th>
+                        <td>{{ visitor.estimated_leave_time|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">实际离开时间</th>
+                        <td>
+                            {% if visitor.actual_leave_time %}
+                            {{ visitor.actual_leave_time|date:"Y-m-d H:i" }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">当前状态</th>
+                        <td>
+                            {% if visitor.status == 'visiting' %}
+                            <span class="badge bg-success fs-6">在访</span>
+                            {% else %}
+                            <span class="badge bg-secondary fs-6">已离场</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -47,4 +47,10 @@ urlpatterns = [
     path('fee/add/', views.FeeCreateView.as_view(), name='fee_add'),
     path('fee/<int:pk>/process/', views.FeeUpdateView.as_view(), name='fee_process'),
     path('fee/<int:pk>/delete/', views.FeeDeleteView.as_view(), name='fee_delete'),
+    
+    # 访客管理
+    path('visitor/', views.VisitorListView.as_view(), name='visitor_list'),
+    path('visitor/add/', views.VisitorCreateView.as_view(), name='visitor_add'),
+    path('visitor/<int:pk>/', views.VisitorDetailView.as_view(), name='visitor_detail'),
+    path('visitor/<int:pk>/leave/', views.VisitorLeaveView.as_view(), name='visitor_leave'),
 ]
