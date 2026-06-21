@@ -66,4 +66,12 @@ urlpatterns = [
     # 社区公告 - 业主端
     path('notice/', views.OwnerAnnouncementListView.as_view(), name='owner_announcement_list'),
     path('notice/<int:pk>/', views.AnnouncementDetailView.as_view(), name='owner_announcement_detail'),
+
+    # 车位管理
+    path('parking/', views.ParkingSpotListView.as_view(), name='parking_spot_list'),
+    path('parking/add/', views.ParkingSpotCreateView.as_view(), name='parking_spot_add'),
+    path('parking/<int:pk>/edit/', views.ParkingSpotUpdateView.as_view(), name='parking_spot_edit'),
+    path('parking/<int:pk>/delete/', views.ParkingSpotDeleteView.as_view(), name='parking_spot_delete'),
+    path('parking/<int:pk>/bind/', views.ParkingSpotBindView.as_view(), name='parking_spot_bind'),
+    path('parking/<int:pk>/unbind/', views.ParkingSpotUnbindView.as_view(), name='parking_spot_unbind'),
 ]

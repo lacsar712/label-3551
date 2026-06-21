@@ -1,5 +1,5 @@
 from django import forms
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot
 from django.utils import timezone
 
 class OwnerForm(forms.ModelForm):
@@ -155,3 +155,22 @@ class AnnouncementForm(forms.ModelForm):
         if start and end and start > end:
             raise forms.ValidationError("生效开始日期不能晚于结束日期")
         return cleaned_data
+
+class ParkingSpotForm(forms.ModelForm):
+    class Meta:
+        model = ParkingSpot
+        fields = ['spot_number', 'estate', 'area', 'spot_type', 'monthly_fee', 'owner', 'unit']
+        widgets = {
+            'spot_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'estate': forms.Select(attrs={'class': 'form-select'}),
+            'area': forms.TextInput(attrs={'class': 'form-control'}),
+            'spot_type': forms.Select(attrs={'class': 'form-select'}),
+            'monthly_fee': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'owner': forms.Select(attrs={'class': 'form-select'}),
+            'unit': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['owner'].queryset = User.objects.filter(role='owner')
+        self.fields['unit'].queryset = Unit.objects.all()

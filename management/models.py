@@ -217,3 +217,39 @@ class Announcement(models.Model):
         from django.utils import timezone
         today = timezone.localdate()
         return today > self.effective_end_date
+
+class ParkingSpot(models.Model):
+    TYPE_CHOICES = (
+        ('property', '产权'),
+        ('rental', '租赁'),
+        ('temporary', '临时'),
+    )
+
+    spot_number = models.CharField("车位编号", max_length=50)
+    estate = models.ForeignKey(Estate, on_delete=models.CASCADE, verbose_name="所属楼盘", related_name="parking_spots")
+    area = models.CharField("所在区域", max_length=100, blank=True, null=True)
+    spot_type = models.CharField("车位类型", max_length=20, choices=TYPE_CHOICES, default='rental')
+    monthly_fee = models.DecimalField("月租金额", max_digits=10, decimal_places=2, default=0.00)
+
+    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="绑定业主", related_name="parking_spots", limit_choices_to={'role': 'owner'})
+    unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="关联单元", related_name="parking_spots")
+
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        verbose_name = "车位"
+        verbose_name_plural = "车位管理"
+        ordering = ['estate', 'spot_number']
+        unique_together = ['estate', 'spot_number']
+
+    def __str__(self):
+        return f"{self.estate.name} - {self.spot_number}"
+
+    @property
+    def is_bound(self):
+        return self.owner is not None
+
+    @property
+    def status_text(self):
+        return "已绑定" if self.is_bound else "未绑定"

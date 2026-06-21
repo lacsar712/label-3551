@@ -4,8 +4,8 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView, View
 from django.contrib import messages
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement
-from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot
+from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm
 from django.views.generic import DetailView
 from django.utils import timezone
 from datetime import date
@@ -40,6 +40,7 @@ class IndexView(LoginRequiredMixin, TemplateView):
             context['draft_announcements'] = Announcement.objects.filter(status='draft').count()
         else:
             context['my_units'] = Unit.objects.filter(owner=self.request.user)
+            context['my_parking_spots'] = ParkingSpot.objects.filter(owner=self.request.user)
             context['my_repairs'] = Repair.objects.filter(owner=self.request.user).order_by('-submit_time')[:5]
             context['unpaid_fees'] = Fee.objects.filter(unit__owner=self.request.user, status='unpaid')
             context['today_visitors'] = Visitor.objects.filter(
@@ -638,3 +639,111 @@ class OwnerAnnouncementListView(LoginRequiredMixin, ListView):
         ).order_by('-publish_time')
         context['search_query'] = self.request.GET.get('search', '')
         return context
+
+# --- 车位管理 ---
+class ParkingSpotListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    model = ParkingSpot
+    template_name = 'management/parking_spot_list.html'
+    context_object_name = 'parking_spots'
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = ParkingSpot.objects.all()
+
+        estate_id = self.request.GET.get('estate')
+        spot_type = self.request.GET.get('spot_type')
+        bind_status = self.request.GET.get('bind_status')
+
+        if estate_id:
+            qs = qs.filter(estate_id=estate_id)
+        if spot_type:
+            qs = qs.filter(spot_type=spot_type)
+        if bind_status == 'bound':
+            qs = qs.filter(owner__isnull=False)
+        elif bind_status == 'unbound':
+            qs = qs.filter(owner__isnull=True)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['estates'] = Estate.objects.all()
+        context['spot_types'] = ParkingSpot.TYPE_CHOICES
+        context['owners'] = User.objects.filter(role='owner')
+        context['units'] = Unit.objects.select_related('floor', 'floor__building', 'floor__building__estate').all()
+        context['current_filters'] = {
+            'estate': self.request.GET.get('estate', ''),
+            'spot_type': self.request.GET.get('spot_type', ''),
+            'bind_status': self.request.GET.get('bind_status', ''),
+        }
+        context['bound_count'] = ParkingSpot.objects.filter(owner__isnull=False).count()
+        context['unbound_count'] = ParkingSpot.objects.filter(owner__isnull=True).count()
+        total = ParkingSpot.objects.count()
+        context['total_count'] = total
+        context['bind_rate'] = f"{int(context['bound_count'] / total * 100)}%" if total > 0 else '0%'
+        return context
+
+class ParkingSpotCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
+    model = ParkingSpot
+    form_class = ParkingSpotForm
+    template_name = 'management/form.html'
+    success_url = reverse_lazy('parking_spot_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, "车位添加成功！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "新增车位"
+        return context
+
+class ParkingSpotUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
+    model = ParkingSpot
+    form_class = ParkingSpotForm
+    template_name = 'management/form.html'
+    success_url = reverse_lazy('parking_spot_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, "车位信息更新成功！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "编辑车位"
+        return context
+
+class ParkingSpotDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
+    model = ParkingSpot
+    template_name = 'management/confirm_delete.html'
+    success_url = reverse_lazy('parking_spot_list')
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(self.request, "车位已删除！")
+        return super().delete(request, *args, **kwargs)
+
+class ParkingSpotBindView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def post(self, request, pk):
+        parking_spot = get_object_or_404(ParkingSpot, pk=pk)
+        owner_id = request.POST.get('owner_id')
+        unit_id = request.POST.get('unit_id')
+
+        if owner_id:
+            owner = get_object_or_404(User, pk=owner_id, role='owner')
+            parking_spot.owner = owner
+        if unit_id:
+            unit = get_object_or_404(Unit, pk=unit_id)
+            parking_spot.unit = unit
+
+        parking_spot.save()
+        messages.success(request, "车位绑定成功！")
+        return redirect(reverse('parking_spot_list'))
+
+class ParkingSpotUnbindView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def post(self, request, pk):
+        parking_spot = get_object_or_404(ParkingSpot, pk=pk)
+        parking_spot.owner = None
+        parking_spot.unit = None
+        parking_spot.save()
+        messages.success(request, "车位解绑成功！")
+        return redirect(reverse('parking_spot_list'))

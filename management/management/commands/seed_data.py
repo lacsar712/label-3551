@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement
+from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot
 from datetime import date, timedelta, datetime
 from django.utils import timezone
 import random
@@ -140,6 +140,54 @@ class Command(BaseCommand):
             status='published',
             publisher=admin,
             publish_time=timezone.now() - timedelta(days=180)
+        )
+        
+        # 7. 创建车位数据
+        ParkingSpot.objects.create(
+            spot_number='A001',
+            estate=estate,
+            area='地下一层A区',
+            spot_type='property',
+            monthly_fee=0,
+            owner=owner1,
+            unit=u1
+        )
+        ParkingSpot.objects.create(
+            spot_number='A002',
+            estate=estate,
+            area='地下一层A区',
+            spot_type='rental',
+            monthly_fee=300,
+            owner=owner2,
+            unit=u2
+        )
+        ParkingSpot.objects.create(
+            spot_number='A003',
+            estate=estate,
+            area='地下一层A区',
+            spot_type='rental',
+            monthly_fee=300
+        )
+        ParkingSpot.objects.create(
+            spot_number='A004',
+            estate=estate,
+            area='地下一层A区',
+            spot_type='temporary',
+            monthly_fee=500
+        )
+        ParkingSpot.objects.create(
+            spot_number='B001',
+            estate=estate,
+            area='地下二层B区',
+            spot_type='property',
+            monthly_fee=0
+        )
+        ParkingSpot.objects.create(
+            spot_number='B002',
+            estate=estate,
+            area='地下二层B区',
+            spot_type='rental',
+            monthly_fee=280
         )
         
         self.stdout.write(self.style.SUCCESS("Database seeded successfully!"))

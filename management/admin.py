@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot
 
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
@@ -22,3 +22,4 @@ admin.site.register(Repair)
 admin.site.register(Fee)
 admin.site.register(Visitor)
 admin.site.register(Announcement, AnnouncementAdmin)
+admin.site.register(ParkingSpot)

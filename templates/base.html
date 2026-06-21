@@ -63,6 +63,8 @@
                         class="{% if 'unit' in request.resolver_match.url_name %}active{% endif %}">单元(房屋)管理</a>
                     <a href="{% url 'owner_list' %}"
                         class="{% if 'owner' in request.resolver_match.url_name %}active{% endif %}">业主信息</a>
+                    <a href="{% url 'parking_spot_list' %}"
+                        class="{% if 'parking_spot' in request.resolver_match.url_name %}active{% endif %}">车位管理</a>
                     {% endif %}
                     <a href="{% url 'repair_list' %}"
                         class="{% if 'repair' in request.resolver_match.url_name %}active{% endif %}">报修管理</a>
