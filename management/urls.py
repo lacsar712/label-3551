@@ -115,4 +115,12 @@ urlpatterns = [
     path('schedule/<int:pk>/delete/', views.DutyScheduleDeleteView.as_view(), name='duty_schedule_delete'),
     path('schedule/batch-copy/', views.DutyScheduleBatchCopyView.as_view(), name='duty_schedule_batch_copy'),
     path('schedule/conflict-check/', views.DutyScheduleConflictCheckView.as_view(), name='duty_schedule_conflict_check'),
+
+    path('decoration/', views.DecorationListView.as_view(), name='decoration_list'),
+    path('decoration/add/', views.DecorationCreateView.as_view(), name='decoration_add'),
+    path('decoration/<int:pk>/', views.DecorationDetailView.as_view(), name='decoration_detail'),
+    path('decoration/<int:pk>/review/', views.DecorationReviewView.as_view(), name='decoration_review'),
+    path('decoration/<int:pk>/comment/', views.DecorationCommentView.as_view(), name='decoration_comment'),
+    path('decoration/<int:pk>/complete/', views.DecorationCompleteView.as_view(), name='decoration_complete'),
+    path('decoration-in-progress/', views.DecorationInProgressListView.as_view(), name='decoration_in_progress'),
 ]

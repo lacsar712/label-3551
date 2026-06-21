@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}装修申请详情 - 智慧物业平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">装修申请详情</h1>
+    <a href="{% url 'decoration_list' %}" class="btn btn-sm btn-outline-secondary">返回列表</a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="fw-bold fs-5">装修申请 #{{ decoration.id }}</span>
+                    {% if decoration.decoration_type == 'whole_house' %}
+                    <span class="badge bg-primary ms-2">全屋装修</span>
+                    {% elif decoration.decoration_type == 'partial' %}
+                    <span class="badge bg-info text-dark ms-2">局部装修</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark ms-2">拆改工程</span>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if decoration.status == 'pending' %}
+                    <span class="badge bg-warning text-dark fs-6">待审核</span>
+                    {% elif decoration.status == 'approved' %}
+                        {% if decoration.is_in_progress %}
+                        <span class="badge bg-success fs-6">施工中</span>
+                        {% elif today < decoration.start_date %}
+                        <span class="badge bg-info text-dark fs-6">待开工</span>
+                        {% else %}
+                        <span class="badge bg-success fs-6">审核通过</span>
+                        {% endif %}
+                    {% elif decoration.status == 'rejected' %}
+                    <span class="badge bg-danger fs-6">已驳回</span>
+                    {% elif decoration.status == 'need_materials' %}
+                    <span class="badge bg-info text-dark fs-6">需补充材料</span>
+                    {% elif decoration.status == 'completed' %}
+                    <span class="badge bg-secondary fs-6">施工已完成</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between text-muted small mb-3">
+                    <div>申请人: {{ decoration.owner.username }}</div>
+                    <div>提交时间: {{ decoration.created_at|date:"Y-m-d H:i:s" }}</div>
+                </div>
+
+                {% if decoration.reviewer %}
+                <div class="d-flex justify-content-between text-muted small mb-3">
+                    <div>审核人: {{ decoration.reviewer.username }}</div>
+                    <div>审核时间: {{ decoration.review_time|date:"Y-m-d H:i:s" }}</div>
+                </div>
+                {% endif %}
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">装修单元</label>
+                        <p class="fw-semibold">{{ decoration.unit }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">施工期限</label>
+                        <p class="fw-semibold">
+                            {{ decoration.start_date|date:"Y-m-d" }} 至 {{ decoration.end_date|date:"Y-m-d" }}
+                            {% if decoration.is_in_progress %}
+                            <span class="badge bg-success ms-2">剩余 {{ decoration.days_until_end }} 天</span>
+                            {% elif today < decoration.start_date %}
+                            <span class="badge bg-info text-dark ms-2">未开工</span>
+                            {% elif today > decoration.end_date %}
+                            <span class="badge bg-secondary ms-2">已到期</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">施工单位</label>
+                        <p class="fw-semibold">{{ decoration.construction_company }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">负责人电话</label>
+                        <p class="fw-semibold">{{ decoration.supervisor_phone }}</p>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small">施工内容说明</label>
+                    <div class="border rounded p-3 bg-light">
+                        {{ decoration.construction_content|linebreaksbr }}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small">承诺遵守事项</label>
+                    <div class="border rounded p-3 bg-light">
+                        {{ decoration.commitment|linebreaksbr }}
+                    </div>
+                </div>
+
+                {% if decoration.review_opinion %}
+                <div class="mb-0">
+                    <label class="form-label text-muted small">
+                        {% if decoration.status == 'approved' %}审核通过意见
+                        {% elif decoration.status == 'rejected' %}驳回意见
+                        {% elif decoration.status == 'need_materials' %}需补充材料说明
+                        {% else %}审核意见{% endif %}
+                    </label>
+                    <div class="border rounded p-3 {% if decoration.status == 'approved' %}bg-success bg-opacity-10 border-success{% elif decoration.status == 'rejected' %}bg-danger bg-opacity-10 border-danger{% else %}bg-info bg-opacity-10 border-info{% endif %}">
+                        {{ decoration.review_opinion|linebreaksbr }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if request.user.role in 'admin,staff' and decoration.is_in_progress %}
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-body">
+                <form method="post" action="{% url 'decoration_complete' decoration.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success" onclick="return confirm('确认标记该装修申请为施工完成吗？')">
+                        <i class="bi bi-check-circle"></i> 标记施工完成
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">审核与意见往来记录</h6>
+                <span class="badge bg-secondary">{{ decoration.reviews.count }} 条记录</span>
+            </div>
+            <div class="card-body">
+                {% for review in decoration.reviews.all %}
+                <div class="d-flex mb-3 {% if forloop.last %}pb-0{% else %}pb-3 border-bottom{% endif %}">
+                    <div class="flex-shrink-0 me-3">
+                        {% if review.reviewer.role == 'admin' or review.reviewer.role == 'staff' %}
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width:40px;height:40px;font-size:14px;">物业</div>
+                        {% else %}
+                        <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center" style="width:40px;height:40px;font-size:14px;">业主</div>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <div>
+                                <span class="fw-semibold">{{ review.reviewer_display }}</span>
+                                {% if review.action == 'approved' %}
+                                <span class="badge bg-success ms-2">审核通过</span>
+                                {% elif review.action == 'rejected' %}
+                                <span class="badge bg-danger ms-2">已驳回</span>
+                                {% elif review.action == 'need_materials' %}
+                                <span class="badge bg-info text-dark ms-2">需补充材料</span>
+                                {% elif review.action == 'completed' %}
+                                <span class="badge bg-secondary ms-2">施工完成</span>
+                                {% elif review.action == 'pending' %}
+                                <span class="badge bg-warning text-dark ms-2">补充材料</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">{{ review.created_at|date:"Y-m-d H:i:s" }}</small>
+                        </div>
+                        <div class="bg-white border rounded p-2">
+                            {{ review.opinion|linebreaksbr }}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center text-muted py-3">暂无审核记录</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if request.user.role in 'admin,staff' and decoration.status == 'pending' %}
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">审核操作</h6>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'decoration_review' decoration.pk %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">审核操作</label>
+                        {{ review_form.action }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">审核意见</label>
+                        {{ review_form.opinion }}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">提交审核</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if decoration.status != 'completed' and decoration.status != 'rejected' %}
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">
+                    {% if decoration.status == 'need_materials' and request.user.role == 'owner' %}
+                    补充材料说明
+                    {% else %}
+                    补充评论
+                    {% endif %}
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'decoration_comment' decoration.pk %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        {{ comment_form.opinion }}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            {% if decoration.status == 'need_materials' and request.user.role == 'owner' %}
+                            提交补充材料
+                            {% else %}
+                            提交评论
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">申请信息</h6>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">申请编号</span>
+                    <span>#{{ decoration.id }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">装修类型</span>
+                    <span>{{ decoration.get_decoration_type_display }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">当前状态</span>
+                    <span>
+                        {% if decoration.status == 'pending' %}
+                        <span class="badge bg-warning text-dark">待审核</span>
+                        {% elif decoration.status == 'approved' %}
+                        <span class="badge bg-success">审核通过</span>
+                        {% elif decoration.status == 'rejected' %}
+                        <span class="badge bg-danger">已驳回</span>
+                        {% elif decoration.status == 'need_materials' %}
+                        <span class="badge bg-info text-dark">需补充材料</span>
+                        {% elif decoration.status == 'completed' %}
+                        <span class="badge bg-secondary">已完成</span>
+                        {% endif %}
+                    </span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">施工进度</span>
+                    <span>
+                        {% if decoration.status != 'approved' %}
+                        -
+                        {% elif decoration.is_in_progress %}
+                        <span class="text-success">施工中</span>
+                        {% elif today < decoration.start_date %}
+                        <span class="text-info">待开工</span>
+                        {% else %}
+                        <span class="text-secondary">已到期</span>
+                        {% endif %}
+                    </span>
+                </li>
+                {% if decoration.is_in_progress %}
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">剩余天数</span>
+                    <span class="fw-bold {% if decoration.is_ending_soon %}text-danger{% else %}text-primary{% endif %}">
+                        {{ decoration.days_until_end }} 天
+                        {% if decoration.is_ending_soon %}
+                        <i class="bi bi-exclamation-triangle text-warning"></i>
+                        {% endif %}
+                    </span>
+                </li>
+                {% endif %}
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">申请人</span>
+                    <span>{{ decoration.owner.username }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">联系电话</span>
+                    <span>{{ decoration.owner.phone|default:"-" }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">提交时间</span>
+                    <span>{{ decoration.created_at|date:"Y-m-d H:i" }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">更新时间</span>
+                    <span>{{ decoration.updated_at|date:"Y-m-d H:i" }}</span>
+                </li>
+                {% if decoration.reviewer %}
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">审核人</span>
+                    <span>{{ decoration.reviewer.username }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">审核时间</span>
+                    <span>{{ decoration.review_time|date:"Y-m-d H:i" }}</span>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

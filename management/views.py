@@ -4,8 +4,8 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView, View
 from django.contrib import messages
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule
-from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm, ComplaintSuggestionForm, ComplaintReplyForm, PackageForm, PackagePickupForm, CommunityActivityForm, EquipmentForm, MaintenanceLogForm, DutyScheduleForm, DutyScheduleBatchCopyForm
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview
+from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm, ComplaintSuggestionForm, ComplaintReplyForm, PackageForm, PackagePickupForm, CommunityActivityForm, EquipmentForm, MaintenanceLogForm, DutyScheduleForm, DutyScheduleBatchCopyForm, DecorationOwnerForm, DecorationReviewForm, DecorationReviewCommentForm
 from django.views.generic import DetailView
 from django.utils import timezone
 from datetime import date, timedelta
@@ -52,6 +52,27 @@ class IndexView(LoginRequiredMixin, TemplateView):
                 next_maintenance_date__lt=today
             ).count()
             context['total_equipment'] = Equipment.objects.count()
+
+            three_days_later = today + timezone.timedelta(days=3)
+            context['pending_decorations'] = DecorationApplication.objects.filter(status='pending').count()
+            context['in_progress_decorations'] = DecorationApplication.objects.filter(
+                status='approved',
+                start_date__lte=today,
+                end_date__gte=today
+            ).count()
+            context['ending_soon_decorations'] = DecorationApplication.objects.filter(
+                status='approved',
+                start_date__lte=today,
+                end_date__gte=today,
+                end_date__lte=three_days_later
+            ).count()
+            context['ending_soon_decoration_list'] = DecorationApplication.objects.filter(
+                status='approved',
+                start_date__lte=today,
+                end_date__gte=today,
+                end_date__lte=three_days_later
+            ).select_related('owner', 'unit', 'unit__floor', 'unit__floor__building').order_by('end_date')[:5]
+
             if self.request.user.role == 'staff':
                 today_date = timezone.localdate()
                 start_of_week = today_date - timedelta(days=today_date.weekday())
@@ -96,6 +117,9 @@ class IndexView(LoginRequiredMixin, TemplateView):
                 end_time__gte=now,
                 registration_deadline__gte=now
             ).order_by('start_time')[:5]
+            context['my_decorations'] = DecorationApplication.objects.filter(
+                owner=self.request.user
+            ).order_by('-created_at')[:5]
         return context
 
 # --- 楼盘管理 ---
@@ -1446,3 +1470,204 @@ class DutyScheduleConflictCheckView(LoginRequiredMixin, StaffRequiredMixin, View
                 'message': f"冲突：{existing.staff.username} 在 {date_val} 的{dict(DutySchedule.SHIFT_CHOICES).get(shift_val, shift_val)}已有排班记录！"
             })
         return JsonResponse({'conflict': False})
+
+
+class DecorationListView(LoginRequiredMixin, ListView):
+    model = DecorationApplication
+    template_name = 'management/decoration_list.html'
+    context_object_name = 'decorations'
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = DecorationApplication.objects.select_related('owner', 'unit', 'unit__floor', 'unit__floor__building', 'unit__floor__building__estate').prefetch_related('reviews')
+        if self.request.user.role == 'owner':
+            qs = qs.filter(owner=self.request.user)
+
+        status = self.request.GET.get('status')
+        decoration_type = self.request.GET.get('decoration_type')
+        if status:
+            qs = qs.filter(status=status)
+        if decoration_type:
+            qs = qs.filter(decoration_type=decoration_type)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['statuses'] = DecorationApplication.STATUS_CHOICES
+        context['decoration_types'] = DecorationApplication.DECORATION_TYPE_CHOICES
+        context['current_filters'] = {
+            'status': self.request.GET.get('status', ''),
+            'decoration_type': self.request.GET.get('decoration_type', ''),
+        }
+        if self.request.user.role in ['admin', 'staff']:
+            context['pending_count'] = DecorationApplication.objects.filter(status='pending').count()
+            context['in_progress_count'] = DecorationApplication.objects.filter(status='approved').count()
+        return context
+
+
+class DecorationCreateView(LoginRequiredMixin, CreateView):
+    model = DecorationApplication
+    form_class = DecorationOwnerForm
+    template_name = 'management/decoration_form.html'
+    success_url = reverse_lazy('decoration_list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if self.request.user.role == 'owner':
+            kwargs['owner'] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        form.instance.owner = self.request.user
+        messages.success(self.request, "装修申请提交成功！请等待物业审核。")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "提交装修申请"
+        context['is_editing'] = False
+        return context
+
+
+class DecorationDetailView(LoginRequiredMixin, DetailView):
+    model = DecorationApplication
+    template_name = 'management/decoration_detail.html'
+    context_object_name = 'decoration'
+
+    def get_queryset(self):
+        qs = DecorationApplication.objects.select_related('owner', 'unit', 'unit__floor', 'unit__floor__building', 'unit__floor__building__estate', 'reviewer').prefetch_related('reviews__replier')
+        if self.request.user.role == 'owner':
+            qs = qs.filter(owner=self.request.user)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['today'] = timezone.localdate()
+        if self.request.user.role in ['admin', 'staff'] and self.object.status == 'pending':
+            context['review_form'] = DecorationReviewForm()
+        context['comment_form'] = DecorationReviewCommentForm()
+        return context
+
+
+class DecorationReviewView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def post(self, request, pk):
+        application = get_object_or_404(DecorationApplication, pk=pk, status='pending')
+        form = DecorationReviewForm(request.POST)
+        if form.is_valid():
+            action = form.cleaned_data['action']
+            opinion = form.cleaned_data['opinion']
+
+            application.status = action
+            application.reviewer = request.user
+            application.review_opinion = opinion
+            application.review_time = timezone.now()
+            application.save()
+
+            DecorationReview.objects.create(
+                application=application,
+                reviewer=request.user,
+                action=action,
+                opinion=opinion
+            )
+
+            action_text = dict(DecorationReviewForm.REVIEW_ACTION_CHOICES).get(action, action)
+            messages.success(request, f"审核操作已完成：{action_text}")
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
+        return redirect(reverse('decoration_detail', kwargs={'pk': pk}))
+
+
+class DecorationCommentView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        application = get_object_or_404(DecorationApplication, pk=pk)
+        if request.user.role == 'owner' and application.owner != request.user:
+            messages.error(request, "您没有权限对此申请进行评论")
+            return redirect(reverse('decoration_list'))
+        if request.user.role not in ['admin', 'staff'] and application.owner != request.user:
+            messages.error(request, "您没有权限对此申请进行评论")
+            return redirect(reverse('decoration_list'))
+
+        form = DecorationReviewCommentForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.application = application
+            comment.reviewer = request.user
+            if application.status == 'need_materials' and request.user.role == 'owner':
+                comment.action = 'pending'
+                application.status = 'pending'
+                application.save()
+            else:
+                comment.action = application.status
+            comment.save()
+            messages.success(request, "评论已提交")
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
+        return redirect(reverse('decoration_detail', kwargs={'pk': pk}))
+
+
+class DecorationInProgressListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    model = DecorationApplication
+    template_name = 'management/decoration_in_progress.html'
+    context_object_name = 'decorations'
+    paginate_by = 20
+
+    def get_queryset(self):
+        today = timezone.localdate()
+        qs = DecorationApplication.objects.select_related('owner', 'unit', 'unit__floor', 'unit__floor__building', 'unit__floor__building__estate').filter(
+            status='approved',
+            start_date__lte=today,
+            end_date__gte=today
+        ).order_by('end_date')
+
+        ending_soon = self.request.GET.get('ending_soon')
+        if ending_soon == '1':
+            three_days_later = today + timedelta(days=3)
+            qs = qs.filter(end_date__lte=three_days_later)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        today = timezone.localdate()
+        context['today'] = today
+        context['total_count'] = DecorationApplication.objects.filter(
+            status='approved',
+            start_date__lte=today,
+            end_date__gte=today
+        ).count()
+        three_days_later = today + timedelta(days=3)
+        context['ending_soon_count'] = DecorationApplication.objects.filter(
+            status='approved',
+            start_date__lte=today,
+            end_date__gte=today,
+            end_date__lte=three_days_later
+        ).count()
+        context['current_filters'] = {
+            'ending_soon': self.request.GET.get('ending_soon', ''),
+        }
+        return context
+
+
+class DecorationCompleteView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def post(self, request, pk):
+        application = get_object_or_404(DecorationApplication, pk=pk)
+        if application.status != 'approved':
+            messages.error(request, "只有审核通过的申请才能标记为完成")
+            return redirect(reverse('decoration_detail', kwargs={'pk': pk}))
+
+        application.status = 'completed'
+        application.save()
+
+        DecorationReview.objects.create(
+            application=application,
+            reviewer=request.user,
+            action='completed',
+            opinion="施工已完成，申请已关闭。"
+        )
+
+        messages.success(request, "装修申请已标记为施工完成")
+        return redirect(reverse('decoration_in_progress'))

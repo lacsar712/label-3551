@@ -1,5 +1,5 @@
 from django import forms
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, Equipment, MaintenanceLog, DutySchedule
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview
 from django.utils import timezone
 
 class OwnerForm(forms.ModelForm):
@@ -368,3 +368,66 @@ class DutyScheduleBatchCopyForm(forms.Form):
             if target.weekday() != 0:
                 raise forms.ValidationError("目标周起始日期必须是周一")
         return cleaned_data
+
+
+class DecorationOwnerForm(forms.ModelForm):
+    class Meta:
+        model = DecorationApplication
+        fields = ['unit', 'decoration_type', 'start_date', 'end_date', 'construction_company', 'supervisor_phone', 'construction_content', 'commitment']
+        widgets = {
+            'unit': forms.Select(attrs={'class': 'form-select'}),
+            'decoration_type': forms.Select(attrs={'class': 'form-select'}),
+            'start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'end_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'construction_company': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '请输入施工单位名称'}),
+            'supervisor_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '请输入施工负责人联系电话'}),
+            'construction_content': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': '请详细描述施工内容，如拆墙、改水电、吊顶等'}),
+            'commitment': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '请填写承诺遵守的事项，如施工时间、垃圾清运、不破坏承重墙等'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        owner = kwargs.pop('owner', None)
+        super().__init__(*args, **kwargs)
+        if owner:
+            self.fields['unit'].queryset = Unit.objects.filter(owner=owner)
+        if not self.instance.pk:
+            today = timezone.localdate()
+            self.initial['start_date'] = today + timezone.timedelta(days=7)
+            self.initial['end_date'] = today + timezone.timedelta(days=37)
+            self.initial['commitment'] = "本人承诺：1. 严格遵守施工时间规定（工作日8:00-12:00，14:00-18:00）；2. 不破坏房屋承重结构；3. 及时清运建筑垃圾；4. 施工期间做好安全防护措施；5. 接受物业管理人员的监督检查。"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get('start_date')
+        end_date = cleaned_data.get('end_date')
+        if start_date and end_date and start_date >= end_date:
+            raise forms.ValidationError("施工结束日期必须晚于开始日期")
+        return cleaned_data
+
+
+class DecorationReviewForm(forms.Form):
+    REVIEW_ACTION_CHOICES = (
+        ('approved', '审核通过'),
+        ('rejected', '予以驳回'),
+        ('need_materials', '需补充材料'),
+    )
+
+    action = forms.ChoiceField(
+        label="审核操作",
+        choices=REVIEW_ACTION_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    opinion = forms.CharField(
+        label="审核意见",
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': '请填写审核意见，说明通过、驳回或需要补充材料的原因'}),
+        required=True
+    )
+
+
+class DecorationReviewCommentForm(forms.ModelForm):
+    class Meta:
+        model = DecorationReview
+        fields = ['opinion']
+        widgets = {
+            'opinion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '请输入补充意见或材料说明'}),
+        }

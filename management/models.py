@@ -566,3 +566,93 @@ class MaintenanceLog(models.Model):
 
     def __str__(self):
         return f"{self.equipment.name} - {self.maintenance_date}"
+
+
+class DecorationApplication(models.Model):
+    DECORATION_TYPE_CHOICES = (
+        ('whole_house', '全屋装修'),
+        ('partial', '局部装修'),
+        ('demolition', '拆改工程'),
+    )
+
+    STATUS_CHOICES = (
+        ('pending', '待审核'),
+        ('approved', '审核通过'),
+        ('rejected', '已驳回'),
+        ('need_materials', '需补充材料'),
+        ('completed', '施工已完成'),
+    )
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="申请业主", related_name="decoration_applications", limit_choices_to={'role': 'owner'})
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, verbose_name="装修单元", related_name="decoration_applications")
+
+    decoration_type = models.CharField("装修类型", max_length=20, choices=DECORATION_TYPE_CHOICES)
+    start_date = models.DateField("施工开始日期")
+    end_date = models.DateField("施工结束日期")
+
+    construction_company = models.CharField("施工单位名称", max_length=200)
+    supervisor_phone = models.CharField("施工负责人电话", max_length=20)
+    construction_content = models.TextField("施工内容说明")
+    commitment = models.TextField("承诺遵守事项")
+
+    status = models.CharField("审核状态", max_length=20, choices=STATUS_CHOICES, default='pending')
+    reviewer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="审核人", related_name="reviewed_decorations", limit_choices_to={'role__in': ['admin', 'staff']})
+    review_opinion = models.TextField("审核意见", blank=True, null=True)
+    review_time = models.DateTimeField("审核时间", null=True, blank=True)
+
+    created_at = models.DateTimeField("提交时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        verbose_name = "装修申请"
+        verbose_name_plural = "装修申请管理"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"#{self.id} {self.get_decoration_type_display()} - {self.unit}"
+
+    @property
+    def is_in_progress(self):
+        from django.utils import timezone
+        if self.status != 'approved':
+            return False
+        today = timezone.localdate()
+        return self.start_date <= today <= self.end_date
+
+    @property
+    def is_ending_soon(self):
+        from django.utils import timezone
+        if not self.is_in_progress:
+            return False
+        today = timezone.localdate()
+        delta = self.end_date - today
+        return 0 <= delta.days <= 3
+
+    @property
+    def days_until_end(self):
+        from django.utils import timezone
+        today = timezone.localdate()
+        delta = self.end_date - today
+        return delta.days
+
+
+class DecorationReview(models.Model):
+    application = models.ForeignKey(DecorationApplication, on_delete=models.CASCADE, verbose_name="关联装修申请", related_name="reviews")
+    reviewer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="审核人", related_name="decoration_reviews")
+    action = models.CharField("审核操作", max_length=20, choices=DecorationApplication.STATUS_CHOICES)
+    opinion = models.TextField("审核意见")
+    created_at = models.DateTimeField("审核时间", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "装修审核记录"
+        verbose_name_plural = "装修审核记录管理"
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.get_action_display()} - #{self.application.id}"
+
+    @property
+    def reviewer_display(self):
+        if self.reviewer and self.reviewer.role in ['admin', 'staff']:
+            return f"物业工作人员 {self.reviewer.username}"
+        return self.reviewer.username if self.reviewer else "未知"

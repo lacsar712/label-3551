@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule
+from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview
 from datetime import date, timedelta, datetime
 from django.utils import timezone
 import random
@@ -535,4 +535,143 @@ class Command(BaseCommand):
                         )
 
         self.stdout.write(self.style.SUCCESS("值班排班数据生成完成！"))
+
+        # 14. 创建装修申请数据
+        today = timezone.localdate()
+
+        dec1 = DecorationApplication.objects.create(
+            owner=owner1,
+            unit=u1,
+            decoration_type='whole_house',
+            start_date=today - timedelta(days=10),
+            end_date=today + timedelta(days=20),
+            construction_company='星艺装饰工程有限公司',
+            supervisor_phone='13800001111',
+            construction_content='全屋精装修，包括水电改造、墙面处理、地板铺设、吊顶安装、厨卫装修等',
+            commitment='本人承诺：1. 严格遵守施工时间规定（工作日8:00-12:00，14:00-18:00）；2. 不破坏房屋承重结构；3. 及时清运建筑垃圾；4. 施工期间做好安全防护措施；5. 接受物业管理人员的监督检查。',
+            status='approved',
+            reviewer=staff,
+            review_opinion='申请材料齐全，符合装修管理规定，同意施工。请严格遵守施工时间，确保施工安全。',
+            review_time=timezone.now() - timedelta(days=11)
+        )
+
+        DecorationReview.objects.create(
+            application=dec1,
+            reviewer=staff,
+            action='approved',
+            opinion='申请材料齐全，符合装修管理规定，同意施工。请严格遵守施工时间，确保施工安全。'
+        )
+
+        dec2 = DecorationApplication.objects.create(
+            owner=owner2,
+            unit=u2,
+            decoration_type='partial',
+            start_date=today - timedelta(days=2),
+            end_date=today + timedelta(days=1),
+            construction_company='宜家整装',
+            supervisor_phone='13900002222',
+            construction_content='卫生间翻新，包括更换洁具、墙砖地砖重铺、防水重做',
+            commitment='本人承诺：1. 严格遵守施工时间规定；2. 做好防水保护，不影响楼下住户；3. 及时清运装修垃圾；4. 施工人员佩戴出入证。',
+            status='approved',
+            reviewer=admin,
+            review_opinion='同意施工。请注意做好防水措施，施工完毕后需做闭水试验。',
+            review_time=timezone.now() - timedelta(days=3)
+        )
+
+        DecorationReview.objects.create(
+            application=dec2,
+            reviewer=admin,
+            action='approved',
+            opinion='同意施工。请注意做好防水措施，施工完毕后需做闭水试验。'
+        )
+
+        dec3 = DecorationApplication.objects.create(
+            owner=owner1,
+            unit=u1,
+            decoration_type='demolition',
+            start_date=today + timedelta(days=7),
+            end_date=today + timedelta(days=10),
+            construction_company='诚信拆除工程队',
+            supervisor_phone='13700003333',
+            construction_content='拆除客厅与卧室之间的非承重隔墙，扩大客厅空间',
+            commitment='本人承诺：1. 仅拆除非承重墙体，不破坏任何承重结构；2. 委托有资质的施工单位施工；3. 施工期间采取有效的防尘降噪措施；4. 建筑垃圾及时清运至指定地点。',
+            status='pending'
+        )
+
+        dec4 = DecorationApplication.objects.create(
+            owner=owner2,
+            unit=u2,
+            decoration_type='partial',
+            start_date=today + timedelta(days=14),
+            end_date=today + timedelta(days=21),
+            construction_company='阳光装修队',
+            supervisor_phone='13600004444',
+            construction_content='厨房翻新，更换橱柜、抽油烟机、燃气灶，重新铺贴墙砖地砖',
+            commitment='本人承诺：遵守小区装修管理规定，文明施工，安全第一。',
+            status='need_materials',
+            reviewer=staff,
+            review_opinion='请补充施工单位资质证明、施工人员身份证复印件及施工图纸。',
+            review_time=timezone.now() - timedelta(days=1)
+        )
+
+        DecorationReview.objects.create(
+            application=dec4,
+            reviewer=staff,
+            action='need_materials',
+            opinion='请补充施工单位资质证明、施工人员身份证复印件及施工图纸。'
+        )
+
+        dec5 = DecorationApplication.objects.create(
+            owner=owner1,
+            unit=u1,
+            decoration_type='partial',
+            start_date=today - timedelta(days=60),
+            end_date=today - timedelta(days=30),
+            construction_company='美好家园装饰',
+            supervisor_phone='13500005555',
+            construction_content='书房装修，包括定制书柜、铺设木地板、墙面刷漆',
+            commitment='遵守装修管理规定，文明施工。',
+            status='completed',
+            reviewer=staff,
+            review_opinion='同意施工。',
+            review_time=timezone.now() - timedelta(days=61)
+        )
+
+        DecorationReview.objects.create(
+            application=dec5,
+            reviewer=staff,
+            action='approved',
+            opinion='同意施工。'
+        )
+        DecorationReview.objects.create(
+            application=dec5,
+            reviewer=admin,
+            action='completed',
+            opinion='施工已完成，验收合格。'
+        )
+
+        dec6 = DecorationApplication.objects.create(
+            owner=owner2,
+            unit=u2,
+            decoration_type='whole_house',
+            start_date=today + timedelta(days=30),
+            end_date=today + timedelta(days=90),
+            construction_company='业之峰装饰',
+            supervisor_phone='13400006666',
+            construction_content='全屋精装修，包含水电改造、全屋定制、地板铺贴、墙面处理、厨卫装修等',
+            commitment='严格遵守小区各项装修管理规定，确保施工安全和质量。',
+            status='rejected',
+            reviewer=admin,
+            review_opinion='施工图纸不完整，且计划拆改的墙体包含部分承重结构，请重新设计后再次提交申请。',
+            review_time=timezone.now() - timedelta(days=2)
+        )
+
+        DecorationReview.objects.create(
+            application=dec6,
+            reviewer=admin,
+            action='rejected',
+            opinion='施工图纸不完整，且计划拆改的墙体包含部分承重结构，请重新设计后再次提交申请。'
+        )
+
+        self.stdout.write(self.style.SUCCESS(f"装修申请数据生成完成！共 {DecorationApplication.objects.count()} 条"))
 

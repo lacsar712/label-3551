@@ -164,6 +164,87 @@
         </a>
     </div>
 
+    <div class="col-md-3">
+        <a href="{% url 'decoration_list' %}?status=pending" class="text-decoration-none text-white">
+            <div class="card text-bg-warning shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">待审核装修</h5>
+                    <p class="card-text fs-2">{{ pending_decorations|default:0 }}</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-3">
+        <a href="{% url 'decoration_in_progress' %}" class="text-decoration-none text-white">
+            <div class="card shadow-sm h-100" style="background-color: #198754;">
+                <div class="card-body">
+                    <h5 class="card-title">装修进行中</h5>
+                    <p class="card-text fs-2">{{ in_progress_decorations|default:0 }}</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-3">
+        <a href="{% url 'decoration_in_progress' %}?ending_soon=1" class="text-decoration-none text-white">
+            <div class="card shadow-sm h-100" style="background-color: #fd7e14;">
+                <div class="card-body">
+                    <h5 class="card-title">临近结束提醒</h5>
+                    <p class="card-text fs-2">{{ ending_soon_decorations|default:0 }}</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    {% if ending_soon_decoration_list %}
+    <div class="col-md-12 mt-4">
+        <div class="card shadow-sm border-warning">
+            <div class="card-header bg-warning bg-opacity-10 border-warning d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-warning">
+                    <i class="bi bi-bell"></i>
+                    <strong>跟进提醒：以下装修申请临近结束日期（3天内）</strong>
+                </h5>
+                <a href="{% url 'decoration_in_progress' %}?ending_soon=1" class="btn btn-sm btn-outline-warning">查看全部</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>编号</th>
+                                <th>装修类型</th>
+                                <th>装修单元</th>
+                                <th>业主</th>
+                                <th>施工单位</th>
+                                <th>结束日期</th>
+                                <th>剩余天数</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for decoration in ending_soon_decoration_list %}
+                            <tr class="table-warning">
+                                <td>#{{ decoration.id }}</td>
+                                <td>{{ decoration.get_decoration_type_display }}</td>
+                                <td>{{ decoration.unit.floor.building.name }}-{{ decoration.unit.name }}</td>
+                                <td>{{ decoration.owner.username }}</td>
+                                <td>{{ decoration.construction_company }}</td>
+                                <td class="text-danger fw-bold">{{ decoration.end_date|date:"Y-m-d" }}</td>
+                                <td><span class="badge bg-danger">{{ decoration.days_until_end }} 天</span></td>
+                                <td>
+                                    <a href="{% url 'decoration_detail' decoration.id %}" class="btn btn-sm btn-outline-primary">查看详情</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {% if request.user.role == 'staff' and my_weekly_duties %}
     <div class="col-md-12 mt-4">
         <div class="card shadow-sm">
@@ -364,6 +445,55 @@
                 {% else %}
                 <p class="text-muted text-center py-3 mb-0">今日暂无访客到访</p>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12 mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">装修申请记录</h5>
+                <a href="{% url 'decoration_add' %}" class="btn btn-sm btn-primary">提交装修申请</a>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>编号</th>
+                            <th>装修类型</th>
+                            <th>装修单元</th>
+                            <th>施工期限</th>
+                            <th>状态</th>
+                            <th>提交时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for decoration in my_decorations %}
+                        <tr>
+                            <td>#{{ decoration.id }}</td>
+                            <td>{{ decoration.get_decoration_type_display }}</td>
+                            <td>{{ decoration.unit.floor.building.name }}-{{ decoration.unit.name }}</td>
+                            <td>{{ decoration.start_date|date:"m-d" }} ~ {{ decoration.end_date|date:"m-d" }}</td>
+                            <td>
+                                {% if decoration.status == 'pending' %}<span class="badge bg-warning text-dark">待审核</span>
+                                {% elif decoration.status == 'approved' %}<span class="badge bg-success">审核通过</span>
+                                {% elif decoration.status == 'rejected' %}<span class="badge bg-danger">已驳回</span>
+                                {% elif decoration.status == 'need_materials' %}<span class="badge bg-info text-dark">需补充材料</span>
+                                {% elif decoration.status == 'completed' %}<span class="badge bg-secondary">已完成</span>{% endif %}
+                            </td>
+                            <td>{{ decoration.created_at|date:"Y-m-d H:i" }}</td>
+                            <td>
+                                <a href="{% url 'decoration_detail' decoration.id %}" class="btn btn-sm btn-outline-primary">查看详情</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-3">暂无装修申请记录</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

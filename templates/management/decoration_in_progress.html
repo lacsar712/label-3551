@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}装修进行中 - 智慧物业平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">装修进行中</h1>
+    <a href="{% url 'decoration_list' %}" class="btn btn-sm btn-outline-secondary">返回全部申请</a>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">进行中装修</h6>
+                        <h3 class="mb-0">{{ total_count }} 项</h3>
+                    </div>
+                    <i class="bi bi-hammer fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">3天内到期</h6>
+                        <h3 class="mb-0">{{ ending_soon_count }} 项</h3>
+                    </div>
+                    <i class="bi bi-exclamation-triangle fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">筛选</label>
+                <select name="ending_soon" class="form-select">
+                    <option value="">全部进行中</option>
+                    <option value="1" {% if current_filters.ending_soon == '1' %}selected{% endif %}">3天内到期</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">查询</button>
+            </div>
+            <div class="col-md-2">
+                <a href="{% url 'decoration_in_progress' %}" class="btn btn-outline-secondary w-100">重置</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if ending_soon_decoration_list and not current_filters.ending_soon %}
+<div class="card shadow-sm border-0 mb-3 border-warning">
+    <div class="card-header bg-warning bg-opacity-10 border-warning">
+        <h6 class="mb-0 text-warning">
+            <i class="bi bi-bell"></i>
+            <strong>跟进提醒：以下装修申请临近结束日期（3天内）</strong>
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>编号</th>
+                        <th>装修类型</th>
+                        <th>装修单元</th>
+                        <th>业主</th>
+                        <th>施工单位</th>
+                        <th>结束日期</th>
+                        <th>剩余天数</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for decoration in ending_soon_decoration_list %}
+                    <tr class="table-warning">
+                        <td>#{{ decoration.id }}</td>
+                        <td>
+                            {% if decoration.decoration_type == 'whole_house' %}
+                            <span class="badge bg-primary">全屋装修</span>
+                            {% elif decoration.decoration_type == 'partial' %}
+                            <span class="badge bg-info text-dark">局部装修</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">拆改工程</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ decoration.unit }}</td>
+                        <td>{{ decoration.owner.username }}</td>
+                        <td>{{ decoration.construction_company }}</td>
+                        <td class="text-danger fw-bold">{{ decoration.end_date|date:"Y-m-d" }}</td>
+                        <td>
+                            <span class="badge bg-danger">{{ decoration.days_until_end }} 天</span>
+                        </td>
+                        <td>
+                            <a href="{% url 'decoration_detail' decoration.id %}" class="btn btn-sm btn-outline-primary">查看详情</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>编号</th>
+                        <th>装修类型</th>
+                        <th>装修单元</th>
+                        <th>业主</th>
+                        <th>施工期限</th>
+                        <th>施工单位</th>
+                        <th>负责人</th>
+                        <th>剩余天数</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for decoration in decorations %}
+                    <tr {% if decoration.is_ending_soon %}class="table-warning"{% endif %}>
+                        <td>#{{ decoration.id }}</td>
+                        <td>
+                            {% if decoration.decoration_type == 'whole_house' %}
+                            <span class="badge bg-primary">全屋装修</span>
+                            {% elif decoration.decoration_type == 'partial' %}
+                            <span class="badge bg-info text-dark">局部装修</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">拆改工程</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ decoration.unit }}</td>
+                        <td>{{ decoration.owner.username }}</td>
+                        <td>{{ decoration.start_date|date:"Y-m-d" }} ~ {{ decoration.end_date|date:"Y-m-d" }}</td>
+                        <td>{{ decoration.construction_company }}</td>
+                        <td>{{ decoration.supervisor_phone }}</td>
+                        <td>
+                            {% if decoration.is_ending_soon %}
+                            <span class="badge bg-danger">{{ decoration.days_until_end }} 天</span>
+                            {% else %}
+                            <span class="badge bg-success">{{ decoration.days_until_end }} 天</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'decoration_detail' decoration.id %}" class="btn btn-sm btn-outline-primary">查看详情</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">暂无进行中的装修申请</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if is_paginated %}
+<nav aria-label="分页" class="mt-3">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&ending_soon={{ current_filters.ending_soon }}">上一页</a>
+        </li>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+        <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+            <a class="page-link" href="?page={{ num }}&ending_soon={{ current_filters.ending_soon }}">{{ num }}</a>
+        </li>
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}&ending_soon={{ current_filters.ending_soon }}">下一页</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

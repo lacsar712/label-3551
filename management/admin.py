@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview
 
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
@@ -117,3 +117,35 @@ class DutyScheduleAdmin(admin.ModelAdmin):
 
 
 admin.site.register(DutySchedule, DutyScheduleAdmin)
+
+
+class DecorationReviewInline(admin.TabularInline):
+    model = DecorationReview
+    extra = 0
+    readonly_fields = ('reviewer', 'action', 'opinion', 'created_at')
+
+
+class DecorationApplicationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'decoration_type', 'unit', 'owner', 'status', 'start_date', 'end_date', 'construction_company', 'created_at')
+    list_filter = ('decoration_type', 'status')
+    search_fields = ('unit__name', 'owner__username', 'construction_company', 'construction_content')
+    date_hierarchy = 'created_at'
+    readonly_fields = ('reviewer', 'review_opinion', 'review_time', 'created_at', 'updated_at')
+    inlines = [DecorationReviewInline]
+
+    def get_status_display(self, obj):
+        from django.utils.html import format_html
+        status_colors = {
+            'pending': 'bg-warning text-dark',
+            'approved': 'bg-success',
+            'rejected': 'bg-danger',
+            'need_materials': 'bg-info text-dark',
+            'completed': 'bg-secondary',
+        }
+        color = status_colors.get(obj.status, 'bg-secondary')
+        return format_html('<span class="badge {}">{}</span>', color, obj.get_status_display())
+    get_status_display.short_description = '状态'
+
+
+admin.site.register(DecorationApplication, DecorationApplicationAdmin)
+admin.site.register(DecorationReview)
