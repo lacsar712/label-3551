@@ -4,13 +4,13 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView, View
 from django.contrib import messages
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog
-from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm, ComplaintSuggestionForm, ComplaintReplyForm, PackageForm, PackagePickupForm, CommunityActivityForm, EquipmentForm, MaintenanceLogForm
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule
+from .forms import EstateForm, BuildingForm, FloorForm, UnitForm, OwnerForm, RepairOwnerForm, RepairStaffForm, FeeForm, VisitorForm, VisitorLeaveForm, AnnouncementForm, ParkingSpotForm, ComplaintSuggestionForm, ComplaintReplyForm, PackageForm, PackagePickupForm, CommunityActivityForm, EquipmentForm, MaintenanceLogForm, DutyScheduleForm, DutyScheduleBatchCopyForm
 from django.views.generic import DetailView
 from django.utils import timezone
-from datetime import date
+from datetime import date, timedelta
 import csv
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 
 class CustomLoginView(LoginView):
     template_name = 'management/login.html'
@@ -52,6 +52,17 @@ class IndexView(LoginRequiredMixin, TemplateView):
                 next_maintenance_date__lt=today
             ).count()
             context['total_equipment'] = Equipment.objects.count()
+            if self.request.user.role == 'staff':
+                today_date = timezone.localdate()
+                start_of_week = today_date - timedelta(days=today_date.weekday())
+                end_of_week = start_of_week + timedelta(days=6)
+                context['my_weekly_duties'] = DutySchedule.objects.filter(
+                    staff=self.request.user,
+                    date__gte=start_of_week,
+                    date__lte=end_of_week
+                ).order_by('date', 'shift')
+                context['week_start'] = start_of_week
+                context['week_end'] = end_of_week
         else:
             context['my_units'] = Unit.objects.filter(owner=self.request.user)
             context['my_parking_spots'] = ParkingSpot.objects.filter(owner=self.request.user)
@@ -1301,3 +1312,137 @@ class MaintenanceLogAddView(LoginRequiredMixin, StaffRequiredMixin, View):
                 for error in errors:
                     messages.error(request, f"{field}: {error}")
         return redirect(reverse('equipment_detail', kwargs={'pk': equipment_pk}))
+
+
+class DutyScheduleListView(LoginRequiredMixin, StaffRequiredMixin, TemplateView):
+    template_name = 'management/schedule_list.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        import calendar
+        year = int(self.request.GET.get('year', timezone.localdate().year))
+        month = int(self.request.GET.get('month', timezone.localdate().month))
+        cal = calendar.monthcalendar(year, month)
+        first_day = date(year, month, 1)
+        last_day = date(year, month, calendar.monthrange(year, month)[1])
+        schedules = DutySchedule.objects.filter(
+            date__gte=first_day,
+            date__lte=last_day
+        ).select_related('staff').order_by('shift')
+        schedule_map = {}
+        for s in schedules:
+            key = s.date.day
+            if key not in schedule_map:
+                schedule_map[key] = []
+            schedule_map[key].append(s)
+        context['year'] = year
+        context['month'] = month
+        context['cal'] = cal
+        context['schedule_map'] = schedule_map
+        context['staff_list'] = User.objects.filter(role__in=['admin', 'staff'])
+        if month == 12:
+            context['prev_year'], context['prev_month'] = year, 11
+            context['next_year'], context['next_month'] = year + 1, 1
+        elif month == 1:
+            context['prev_year'], context['prev_month'] = year - 1, 12
+            context['next_year'], context['next_month'] = year, 2
+        else:
+            context['prev_year'], context['prev_month'] = year, month - 1
+            context['next_year'], context['next_month'] = year, month + 1
+        context['today'] = timezone.localdate()
+        context['batch_copy_form'] = DutyScheduleBatchCopyForm()
+        last_week_start = timezone.localdate() - timedelta(days=timezone.localdate().weekday() + 7)
+        context['last_week_start'] = last_week_start
+        return context
+
+
+class DutyScheduleCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
+    model = DutySchedule
+    form_class = DutyScheduleForm
+    template_name = 'management/schedule_form.html'
+    success_url = reverse_lazy('duty_schedule_list')
+
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        messages.success(self.request, "排班添加成功！")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "新增排班"
+        initial_date = self.request.GET.get('date')
+        if initial_date and not self.request.POST:
+            context['form'].initial['date'] = initial_date
+        return context
+
+
+class DutyScheduleDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
+    model = DutySchedule
+    template_name = 'management/confirm_delete.html'
+    success_url = reverse_lazy('duty_schedule_list')
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, "排班记录已删除！")
+        return super().delete(request, *args, **kwargs)
+
+
+class DutyScheduleBatchCopyView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def post(self, request):
+        form = DutyScheduleBatchCopyForm(request.POST)
+        if form.is_valid():
+            source_start = form.cleaned_data['source_week_start']
+            target_start = form.cleaned_data['target_week_start']
+            delta = target_start - source_start
+            source_schedules = DutySchedule.objects.filter(
+                date__gte=source_start,
+                date__lt=source_start + timedelta(days=7)
+            )
+            if not source_schedules.exists():
+                messages.warning(request, "源周没有任何排班数据，无法复制！")
+                return redirect(reverse('duty_schedule_list'))
+            copied = 0
+            skipped = 0
+            conflicts = []
+            for s in source_schedules:
+                new_date = s.date + delta
+                if DutySchedule.objects.filter(date=new_date, shift=s.shift, staff=s.staff).exists():
+                    skipped += 1
+                    conflicts.append(f"{s.staff.username} 在 {new_date} 的{dict(DutySchedule.SHIFT_CHOICES).get(s.shift, s.shift)}")
+                    continue
+                DutySchedule.objects.create(
+                    date=new_date,
+                    shift=s.shift,
+                    staff=s.staff,
+                    remarks=s.remarks,
+                    created_by=request.user
+                )
+                copied += 1
+            msg = f"批量复制完成！成功复制 {copied} 条"
+            if skipped > 0:
+                msg += f"，跳过 {skipped} 条冲突（{'；'.join(conflicts)}）"
+            messages.success(request, msg)
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
+        return redirect(reverse('duty_schedule_list'))
+
+
+class DutyScheduleConflictCheckView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def get(self, request):
+        date_val = request.GET.get('date')
+        shift_val = request.GET.get('shift')
+        staff_val = request.GET.get('staff')
+        schedule_id = request.GET.get('schedule_id')
+        if not all([date_val, shift_val, staff_val]):
+            return JsonResponse({'conflict': False})
+        qs = DutySchedule.objects.filter(date=date_val, shift=shift_val, staff_id=staff_val)
+        if schedule_id:
+            qs = qs.exclude(pk=schedule_id)
+        if qs.exists():
+            existing = qs.first()
+            return JsonResponse({
+                'conflict': True,
+                'message': f"冲突：{existing.staff.username} 在 {date_val} 的{dict(DutySchedule.SHIFT_CHOICES).get(shift_val, shift_val)}已有排班记录！"
+            })
+        return JsonResponse({'conflict': False})

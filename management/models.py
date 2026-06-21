@@ -506,6 +506,43 @@ class Equipment(models.Model):
         return "valid"
 
 
+class DutySchedule(models.Model):
+    SHIFT_CHOICES = (
+        ('morning', '早班'),
+        ('afternoon', '中班'),
+        ('evening', '晚班'),
+    )
+
+    date = models.DateField("值班日期")
+    shift = models.CharField("班次", max_length=20, choices=SHIFT_CHOICES)
+    staff = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name="值班人员",
+        related_name="duty_schedules",
+        limit_choices_to={'role__in': ['admin', 'staff']}
+    )
+    remarks = models.TextField("备注", blank=True, default='')
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="创建人",
+        related_name="created_duty_schedules"
+    )
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "值班排班"
+        verbose_name_plural = "值班排班管理"
+        unique_together = ['date', 'shift', 'staff']
+        ordering = ['date', 'shift']
+
+    def __str__(self):
+        return f"{self.date} {self.get_shift_display()} - {self.staff.username}"
+
+
 class MaintenanceLog(models.Model):
     equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, verbose_name="关联设备", related_name="maintenance_logs")
     maintenance_date = models.DateField("维保日期")

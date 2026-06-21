@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title|default:"排班管理" }} - 智慧物业平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">{{ title|default:"排班管理" }}</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <form method="post" id="scheduleForm" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    {% for field in form %}
+                    <div class="mb-3">
+                        <label for="{{ field.id_for_label }}" class="form-label fw-bold">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% for error in field.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+
+                    <div id="conflictAlert" class="alert alert-danger d-none" role="alert"></div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" id="submitBtn" class="btn btn-primary">保存排班</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="history.back()">取消返回</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var dateField = document.getElementById('id_date');
+    var shiftField = document.getElementById('id_shift');
+    var staffField = document.getElementById('id_staff');
+    var conflictAlert = document.getElementById('conflictAlert');
+    var submitBtn = document.getElementById('submitBtn');
+
+    function checkConflict() {
+        var dateVal = dateField.value;
+        var shiftVal = shiftField.value;
+        var staffVal = staffField.value;
+
+        if (!dateVal || !shiftVal || !staffVal) {
+            conflictAlert.classList.add('d-none');
+            submitBtn.disabled = false;
+            return;
+        }
+
+        var url = '{% url "duty_schedule_conflict_check" %}?date=' + encodeURIComponent(dateVal) +
+                  '&shift=' + encodeURIComponent(shiftVal) +
+                  '&staff=' + encodeURIComponent(staffVal);
+
+        fetch(url)
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.conflict) {
+                    conflictAlert.textContent = data.message;
+                    conflictAlert.classList.remove('d-none');
+                    submitBtn.disabled = true;
+                } else {
+                    conflictAlert.classList.add('d-none');
+                    submitBtn.disabled = false;
+                }
+            })
+            .catch(function() {
+                conflictAlert.classList.add('d-none');
+                submitBtn.disabled = false;
+            });
+    }
+
+    dateField.addEventListener('change', checkConflict);
+    shiftField.addEventListener('change', checkConflict);
+    staffField.addEventListener('change', checkConflict);
+})();
+</script>
+{% endblock %}

@@ -109,4 +109,10 @@ urlpatterns = [
     path('equipment/<int:pk>/delete/', views.EquipmentDeleteView.as_view(), name='equipment_delete'),
     path('equipment/<int:pk>/', views.EquipmentDetailView.as_view(), name='equipment_detail'),
     path('equipment/<int:equipment_pk>/log/add/', views.MaintenanceLogAddView.as_view(), name='maintenance_log_add'),
+
+    path('schedule/', views.DutyScheduleListView.as_view(), name='duty_schedule_list'),
+    path('schedule/add/', views.DutyScheduleCreateView.as_view(), name='duty_schedule_add'),
+    path('schedule/<int:pk>/delete/', views.DutyScheduleDeleteView.as_view(), name='duty_schedule_delete'),
+    path('schedule/batch-copy/', views.DutyScheduleBatchCopyView.as_view(), name='duty_schedule_batch_copy'),
+    path('schedule/conflict-check/', views.DutyScheduleConflictCheckView.as_view(), name='duty_schedule_conflict_check'),
 ]

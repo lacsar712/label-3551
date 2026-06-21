@@ -100,6 +100,8 @@
                         <span class="badge bg-danger ms-1">{{ upcoming_maintenance|default:0|add:overdue_maintenance|default:0 }}</span>
                         {% endif %}
                     </a>
+                    <a href="{% url 'duty_schedule_list' %}"
+                        class="{% if 'duty_schedule' in request.resolver_match.url_name %}active{% endif %}">值班排班</a>
                     {% endif %}
 
                     {% if request.user.role == 'owner' %}

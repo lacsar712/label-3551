@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% load schedule_tags %}
+
+{% block title %}值班排班管理 - 智慧物业平台{% endblock %}
+
+{% block extra_css %}
+<style>
+    .calendar-table th {
+        text-align: center;
+        padding: 8px 4px;
+        font-size: 0.85rem;
+    }
+    .calendar-table td {
+        vertical-align: top;
+        height: 100px;
+        padding: 4px;
+        position: relative;
+        min-width: 100px;
+    }
+    .calendar-table td.has-schedule {
+        background-color: #f0f7ff;
+    }
+    .calendar-table td.is-today {
+        background-color: #fff3cd;
+    }
+    .day-number {
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 2px;
+    }
+    .shift-badge {
+        display: inline-block;
+        font-size: 0.7rem;
+        padding: 1px 6px;
+        border-radius: 3px;
+        margin: 1px 0;
+        white-space: nowrap;
+        cursor: default;
+    }
+    .shift-morning { background-color: #ffc107; color: #333; }
+    .shift-afternoon { background-color: #0d6efd; color: #fff; }
+    .shift-evening { background-color: #6f42c1; color: #fff; }
+    .add-btn-small {
+        position: absolute;
+        bottom: 2px;
+        right: 4px;
+        font-size: 0.7rem;
+        opacity: 0.5;
+        transition: opacity 0.2s;
+    }
+    .calendar-table td:hover .add-btn-small {
+        opacity: 1;
+    }
+    .delete-btn-small {
+        font-size: 0.6rem;
+        opacity: 0.6;
+        padding: 0 2px;
+    }
+    .delete-btn-small:hover {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">值班排班管理</h1>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#batchCopyModal">
+            批量复制排班
+        </button>
+        <a href="{% url 'duty_schedule_add' %}" class="btn btn-primary">
+            新增排班
+        </a>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn btn-outline-secondary btn-sm">
+        &laquo; 上月
+    </a>
+    <h4 class="mb-0">{{ year }}年{{ month }}月</h4>
+    <a href="?year={{ next_year }}&month={{ next_month }}" class="btn btn-outline-secondary btn-sm">
+        下月 &raquo;
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-bordered calendar-table mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>周一</th>
+                    <th>周二</th>
+                    <th>周三</th>
+                    <th>周四</th>
+                    <th>周五</th>
+                    <th>周六</th>
+                    <th>周日</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for week in cal %}
+                <tr>
+                    {% for day in week %}
+                    {% if day == 0 %}
+                    <td class="text-muted bg-light"></td>
+                    {% else %}
+                    <td class="{% if schedule_map|get_item:day %}has-schedule{% endif %}{% if year == today.year and month == today.month and day == today.day %} is-today{% endif %}">
+                        <div class="day-number">
+                            {{ day }}
+                            {% if year == today.year and month == today.month and day == today.day %}
+                            <span class="badge bg-danger ms-1" style="font-size:0.6rem;">今</span>
+                            {% endif %}
+                        </div>
+                        {% with schedules=schedule_map|get_item:day %}
+                        {% if schedules %}
+                            {% for s in schedules %}
+                            <div class="d-flex align-items-center justify-content-between">
+                                <span class="shift-badge shift-{{ s.shift }}" title="{{ s.staff.username }}{% if s.remarks %} - {{ s.remarks }}{% endif %}">
+                                    {{ s.get_shift_display }} {{ s.staff.username }}
+                                </span>
+                                <form method="post" action="{% url 'duty_schedule_delete' s.pk %}" class="d-inline" onsubmit="return confirm('确定要删除此排班记录吗？');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-link text-danger p-0 delete-btn-small" title="删除">&times;</button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                        {% endwith %}
+                        <a href="{% url 'duty_schedule_add' %}?date={{ year }}-{{ month|stringformat:"02d" }}-{{ day|stringformat:"02d" }}" class="btn btn-link text-primary p-0 add-btn-small" title="新增排班">+</a>
+                    </td>
+                    {% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="batchCopyModal" tabindex="-1" aria-labelledby="batchCopyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'duty_schedule_batch_copy' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="batchCopyModalLabel">批量复制排班</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ batch_copy_form.source_week_start.label }}</label>
+                        {{ batch_copy_form.source_week_start }}
+                        {% for error in batch_copy_form.source_week_start.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">快捷：上周一起始为 {{ last_week_start|date:"Y-m-d" }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ batch_copy_form.target_week_start.label }}</label>
+                        {{ batch_copy_form.target_week_start }}
+                        {% for error in batch_copy_form.target_week_start.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="alert alert-info">
+                        <strong>说明：</strong>将源周（周一到周日）的所有排班记录复制到目标周对应日期，目标周已有排班的冲突记录将被跳过并提示。
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">确认复制</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

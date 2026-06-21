@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog
+from management.models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule
 from datetime import date, timedelta, datetime
 from django.utils import timezone
 import random
@@ -512,4 +512,27 @@ class Command(BaseCommand):
                 )
 
         self.stdout.write(self.style.SUCCESS("维保日志数据生成完成！"))
+
+        # 13. 创建值班排班数据
+        today = date.today()
+        start_of_week = today - timedelta(days=today.weekday())
+        shifts = ['morning', 'afternoon', 'evening']
+        staff_members = [staff, admin]
+
+        for week_offset in range(-1, 3):
+            week_start = start_of_week + timedelta(weeks=week_offset)
+            for day_offset in range(7):
+                current_date = week_start + timedelta(days=day_offset)
+                for shift in shifts:
+                    chosen = random.choice(staff_members)
+                    if not DutySchedule.objects.filter(date=current_date, shift=shift, staff=chosen).exists():
+                        DutySchedule.objects.create(
+                            date=current_date,
+                            shift=shift,
+                            staff=chosen,
+                            remarks='',
+                            created_by=admin
+                        )
+
+        self.stdout.write(self.style.SUCCESS("值班排班数据生成完成！"))
 

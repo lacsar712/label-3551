@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, ActivityRegistration, Equipment, MaintenanceLog, DutySchedule
 
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
@@ -106,3 +106,14 @@ class MaintenanceLogAdmin(admin.ModelAdmin):
 
 
 admin.site.register(MaintenanceLog, MaintenanceLogAdmin)
+
+
+class DutyScheduleAdmin(admin.ModelAdmin):
+    list_display = ('date', 'shift', 'staff', 'remarks', 'created_by', 'created_at')
+    list_filter = ('shift', 'staff', 'date')
+    search_fields = ('staff__username', 'remarks')
+    date_hierarchy = 'date'
+    ordering = ('-date', 'shift')
+
+
+admin.site.register(DutySchedule, DutyScheduleAdmin)

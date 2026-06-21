@@ -163,6 +163,49 @@
             </div>
         </a>
     </div>
+
+    {% if request.user.role == 'staff' and my_weekly_duties %}
+    <div class="col-md-12 mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">📅 本周值班计划（{{ week_start|date:"m/d" }} - {{ week_end|date:"m/d" }}）</h5>
+                <a href="{% url 'duty_schedule_list' %}" class="btn btn-sm btn-outline-primary">查看排班表</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>日期</th>
+                                <th>星期</th>
+                                <th>班次</th>
+                                <th>备注</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for duty in my_weekly_duties %}
+                            <tr class="{% if duty.date == today %}table-warning{% endif %}">
+                                <td>{{ duty.date|date:"Y-m-d" }}</td>
+                                <td>{{ duty.date|date:"l" }}</td>
+                                <td>
+                                    {% if duty.shift == 'morning' %}
+                                    <span class="badge bg-warning text-dark">早班</span>
+                                    {% elif duty.shift == 'afternoon' %}
+                                    <span class="badge bg-primary">中班</span>
+                                    {% else %}
+                                    <span class="badge" style="background-color: #6f42c1; color: #fff;">晚班</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ duty.remarks|default:"-" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
     {% else %}
     <div class="col-md-4">
         <div class="card shadow-sm h-100">

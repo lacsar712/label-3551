@@ -1,5 +1,5 @@
 from django import forms
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, Equipment, MaintenanceLog
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, Equipment, MaintenanceLog, DutySchedule
 from django.utils import timezone
 
 class OwnerForm(forms.ModelForm):
@@ -313,3 +313,58 @@ class MaintenanceLogForm(forms.ModelForm):
         self.fields['operator'].queryset = User.objects.filter(role__in=['admin', 'staff'])
         if not self.instance.pk:
             self.initial['maintenance_date'] = timezone.localdate()
+
+
+class DutyScheduleForm(forms.ModelForm):
+    class Meta:
+        model = DutySchedule
+        fields = ['date', 'shift', 'staff', 'remarks']
+        widgets = {
+            'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'shift': forms.Select(attrs={'class': 'form-select'}),
+            'staff': forms.Select(attrs={'class': 'form-select'}),
+            'remarks': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '选填，如：巡检重点区域等'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['staff'].queryset = User.objects.filter(role__in=['admin', 'staff'])
+
+    def clean(self):
+        cleaned_data = super().clean()
+        date = cleaned_data.get('date')
+        shift = cleaned_data.get('shift')
+        staff = cleaned_data.get('staff')
+        if date and shift and staff:
+            qs = DutySchedule.objects.filter(date=date, shift=shift, staff=staff)
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(
+                    f"冲突：{staff.username} 在 {date} 的{dict(DutySchedule.SHIFT_CHOICES).get(shift, shift)}已有排班记录，同一人员同一日期同一班次不可重复排班！"
+                )
+        return cleaned_data
+
+
+class DutyScheduleBatchCopyForm(forms.Form):
+    source_week_start = forms.DateField(
+        label="源周起始日期(周一)",
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+    )
+    target_week_start = forms.DateField(
+        label="目标周起始日期(周一)",
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        source = cleaned_data.get('source_week_start')
+        target = cleaned_data.get('target_week_start')
+        if source and target:
+            if source == target:
+                raise forms.ValidationError("源周和目标周不能相同")
+            if source.weekday() != 0:
+                raise forms.ValidationError("源周起始日期必须是周一")
+            if target.weekday() != 0:
+                raise forms.ValidationError("目标周起始日期必须是周一")
+        return cleaned_data
