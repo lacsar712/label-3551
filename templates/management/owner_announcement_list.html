@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}社区公告 - 智慧物业平台{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pin-icon { color: #ffc107; }
+    .announcement-item {
+        transition: all 0.2s ease;
+    }
+    .announcement-item:hover {
+        background-color: #f8f9fa;
+    }
+    .pinned-section {
+        background: linear-gradient(135deg, #fff8e1 0%, #fff3cd 100%);
+        border: 1px solid #ffc107;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">社区公告</h1>
+</div>
+
+{% if pinned_announcements %}
+<div class="card pinned-section shadow-sm mb-4">
+    <div class="card-header bg-transparent border-bottom border-warning-subtle">
+        <h5 class="mb-0 text-warning-emphasis">📌 置顶公告</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+            {% for ann in pinned_announcements %}
+            <a href="{% url 'owner_announcement_detail' ann.pk %}" class="list-group-item list-group-item-action bg-transparent announcement-item border-0 py-3 px-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="me-3">
+                        <h6 class="mb-1 fw-semibold">
+                            <span class="pin-icon me-1">📌</span>{{ ann.title }}
+                        </h6>
+                        <small class="text-muted">
+                            发布于 {{ ann.publish_time|date:"Y-m-d H:i" }} ｜ 生效至 {{ ann.effective_end_date|date:"Y-m-d" }}
+                            {% if ann.publisher %}｜发布人：{{ ann.publisher.username }}{% endif %}
+                        </small>
+                    </div>
+                    <span class="badge bg-warning text-dark flex-shrink-0">置顶</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-8">
+                <input type="text" class="form-control" name="search" value="{{ search_query }}" placeholder="搜索公告标题...">
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">搜索</button>
+                <a href="{% url 'owner_announcement_list' %}" class="btn btn-outline-secondary">重置</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">全部公告</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+            {% for ann in announcements %}
+            {% if not ann.is_pinned or not pinned_announcements %}
+            <a href="{% url 'owner_announcement_detail' ann.pk %}" class="list-group-item list-group-item-action announcement-item py-4 px-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="me-3 flex-grow-1">
+                        <h6 class="mb-2 fw-semibold">
+                            {% if ann.is_pinned %}
+                            <span class="pin-icon me-1">📌</span>
+                            {% endif %}
+                            {{ ann.title }}
+                        </h6>
+                        <small class="text-muted d-block mb-2">
+                            发布时间：{{ ann.publish_time|date:"Y-m-d H:i" }}
+                            ｜ 有效期至：{{ ann.effective_end_date|date:"Y-m-d" }}
+                            {% if ann.publisher %}｜发布人：{{ ann.publisher.username }}{% endif %}
+                        </small>
+                    </div>
+                    {% if ann.is_pinned %}
+                    <span class="badge bg-warning text-dark flex-shrink-0 ms-3">置顶</span>
+                    {% endif %}
+                </div>
+            </a>
+            {% endif %}
+            {% empty %}
+            <div class="text-center text-muted py-5">
+                <p class="mb-0">暂无公告通知</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% if is_paginated and page_obj.has_other_pages %}
+    <div class="card-footer bg-white border-0">
+        <nav>
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">上一页</a>
+                </li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">下一页</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

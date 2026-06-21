@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}公告管理 - 智慧物业平台{% endblock %}
+
+{% block extra_css %}
+<style>
+    .nav-tabs .nav-link {
+        color: #495057;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 0.75rem 1.25rem;
+    }
+    .nav-tabs .nav-link.active {
+        color: #0d6efd;
+        border-bottom-color: #0d6efd;
+        background: none;
+        font-weight: 600;
+    }
+    .status-badge-draft { background-color: #6c757d; }
+    .status-badge-published { background-color: #198754; }
+    .status-badge-withdrawn { background-color: #dc3545; }
+    .pin-icon {
+        color: #ffc107;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">社区公告管理</h1>
+    <a href="{% url 'announcement_add' %}" class="btn btn-primary">
+        <span class="me-1">+</span>撰写公告
+    </a>
+</div>
+
+<ul class="nav nav-tabs mb-4 border-bottom-0">
+    <li class="nav-item">
+        <a class="nav-link {% if current_tab == 'active' %}active{% endif %}" href="?tab=active">
+            公告管理
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if current_tab == 'history' %}active{% endif %}" href="?tab=history">
+            历史公告
+        </a>
+    </li>
+</ul>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <input type="hidden" name="tab" value="{{ current_tab }}">
+            {% if current_tab == 'active' %}
+            <div class="col-md-3">
+                <label class="form-label">状态筛选</label>
+                <select class="form-select" name="status">
+                    <option value="">全部状态</option>
+                    {% for value, label in statuses %}
+                    <option value="{{ value }}" {% if current_filters.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-5">
+                <label class="form-label">关键词搜索</label>
+                <input type="text" class="form-control" name="search" value="{{ current_filters.search }}" placeholder="输入公告标题搜索...">
+            </div>
+            <div class="col-md-4 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">筛选</button>
+                <a href="?tab={{ current_tab }}" class="btn btn-outline-secondary">重置</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 50px;">置顶</th>
+                    <th>公告标题</th>
+                    <th style="width: 100px;">状态</th>
+                    <th style="width: 180px;">生效日期</th>
+                    <th style="width: 120px;">发布人</th>
+                    <th style="width: 160px;">发布时间</th>
+                    <th style="width: 200px;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ann in announcements %}
+                <tr>
+                    <td>
+                        {% if ann.is_pinned %}
+                        <span class="pin-icon" title="已置顶">📌</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'announcement_detail' ann.pk %}" class="text-decoration-none fw-semibold">
+                            {{ ann.title }}
+                        </a>
+                        {% if ann.is_effective %}
+                        <span class="badge bg-success ms-2">生效中</span>
+                        {% elif ann.is_expired and current_tab == 'active' %}
+                        <span class="badge bg-secondary ms-2">已过期</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge status-badge-{{ ann.status }}">
+                            {{ ann.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <small class="text-muted">
+                            {{ ann.effective_start_date|date:"Y-m-d" }}<br>
+                            ~ {{ ann.effective_end_date|date:"Y-m-d" }}
+                        </small>
+                    </td>
+                    <td>
+                        {% if ann.publisher %}
+                        {{ ann.publisher.username }}
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if ann.publish_time %}
+                        <small>{{ ann.publish_time|date:"Y-m-d H:i" }}</small>
+                        {% else %}
+                        <span class="text-muted">未发布</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'announcement_detail' ann.pk %}" class="btn btn-outline-primary">详情</a>
+                            <a href="{% url 'announcement_edit' ann.pk %}" class="btn btn-outline-secondary">编辑</a>
+                            {% if ann.status == 'draft' %}
+                            <form method="post" action="{% url 'announcement_publish' ann.pk %}" style="display:inline;" onsubmit="return confirm('确定发布此公告吗？');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-success">发布</button>
+                            </form>
+                            {% elif ann.status == 'published' %}
+                            <form method="post" action="{% url 'announcement_withdraw' ann.pk %}" style="display:inline;" onsubmit="return confirm('确定撤回此公告吗？撤回后业主端将不可见。');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-warning">撤回</button>
+                            </form>
+                            {% endif %}
+                            <a href="{% url 'announcement_delete' ann.pk %}" class="btn btn-outline-danger" onclick="return confirm('确定删除此公告吗？此操作不可撤销。');">删除</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">
+                        {% if current_tab == 'history' %}暂无历史公告{% else %}暂无公告记录{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if is_paginated and page_obj.has_other_pages %}
+    <div class="card-footer bg-white border-0">
+        <nav>
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?tab={{ current_tab }}&page={{ page_obj.previous_page_number }}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">上一页</a>
+                </li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                    <a class="page-link" href="?tab={{ current_tab }}&page={{ num }}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?tab={{ current_tab }}&page={{ page_obj.next_page_number }}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">下一页</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

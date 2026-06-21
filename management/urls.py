@@ -53,4 +53,17 @@ urlpatterns = [
     path('visitor/add/', views.VisitorCreateView.as_view(), name='visitor_add'),
     path('visitor/<int:pk>/', views.VisitorDetailView.as_view(), name='visitor_detail'),
     path('visitor/<int:pk>/leave/', views.VisitorLeaveView.as_view(), name='visitor_leave'),
+
+    # 社区公告 - 管理端 (admin/staff)
+    path('announcement/', views.AnnouncementListView.as_view(), name='announcement_list'),
+    path('announcement/add/', views.AnnouncementCreateView.as_view(), name='announcement_add'),
+    path('announcement/<int:pk>/edit/', views.AnnouncementUpdateView.as_view(), name='announcement_edit'),
+    path('announcement/<int:pk>/delete/', views.AnnouncementDeleteView.as_view(), name='announcement_delete'),
+    path('announcement/<int:pk>/detail/', views.AnnouncementDetailView.as_view(), name='announcement_detail'),
+    path('announcement/<int:pk>/publish/', views.AnnouncementPublishView.as_view(), name='announcement_publish'),
+    path('announcement/<int:pk>/withdraw/', views.AnnouncementWithdrawView.as_view(), name='announcement_withdraw'),
+
+    # 社区公告 - 业主端
+    path('notice/', views.OwnerAnnouncementListView.as_view(), name='owner_announcement_list'),
+    path('notice/<int:pk>/', views.AnnouncementDetailView.as_view(), name='owner_announcement_detail'),
 ]

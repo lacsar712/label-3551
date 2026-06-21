@@ -1,5 +1,5 @@
 from django import forms
-from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor
+from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement
 from django.utils import timezone
 
 class OwnerForm(forms.ModelForm):
@@ -127,3 +127,31 @@ class VisitorLeaveForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if not self.instance.actual_leave_time:
             self.initial['actual_leave_time'] = timezone.now().strftime('%Y-%m-%dT%H:%M')
+
+
+class AnnouncementForm(forms.ModelForm):
+    class Meta:
+        model = Announcement
+        fields = ['title', 'content', 'is_pinned', 'effective_start_date', 'effective_end_date']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '请输入公告标题'}),
+            'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 10, 'placeholder': '请输入公告正文，支持HTML富文本内容', 'id': 'id_content'}),
+            'is_pinned': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'effective_start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'effective_end_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance.pk:
+            today = timezone.localdate()
+            self.initial['effective_start_date'] = today
+            self.initial['effective_end_date'] = today + timezone.timedelta(days=30)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start = cleaned_data.get('effective_start_date')
+        end = cleaned_data.get('effective_end_date')
+        if start and end and start > end:
+            raise forms.ValidationError("生效开始日期不能晚于结束日期")
+        return cleaned_data

@@ -165,3 +165,55 @@ class Visitor(models.Model):
     
     def __str__(self):
         return f"{self.name} - 拜访{self.owner.username}"
+
+
+class Announcement(models.Model):
+    STATUS_CHOICES = (
+        ('draft', '草稿'),
+        ('published', '已发布'),
+        ('withdrawn', '已撤回'),
+    )
+
+    title = models.CharField("公告标题", max_length=200)
+    content = models.TextField("公告正文(富文本)")
+    is_pinned = models.BooleanField("是否置顶", default=False)
+    effective_start_date = models.DateField("生效开始日期")
+    effective_end_date = models.DateField("生效结束日期")
+
+    status = models.CharField("状态", max_length=20, choices=STATUS_CHOICES, default='draft')
+    publisher = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="发布人",
+        related_name="published_announcements",
+        limit_choices_to={'role__in': ['admin', 'staff']}
+    )
+
+    publish_time = models.DateTimeField("发布时间", null=True, blank=True)
+    withdraw_time = models.DateTimeField("撤回时间", null=True, blank=True)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        verbose_name = "社区公告"
+        verbose_name_plural = "社区公告管理"
+        ordering = ['-is_pinned', '-publish_time', '-created_at']
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def is_effective(self):
+        from django.utils import timezone
+        today = timezone.localdate()
+        if self.status != 'published':
+            return False
+        return self.effective_start_date <= today <= self.effective_end_date
+
+    @property
+    def is_expired(self):
+        from django.utils import timezone
+        today = timezone.localdate()
+        return today > self.effective_end_date
