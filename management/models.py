@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import MinValueValidator
 from django.utils import timezone
 
 class User(AbstractUser):
@@ -567,7 +568,7 @@ class MaintenanceLog(models.Model):
         related_name="operated_maintenance_logs",
         limit_choices_to={'role__in': ['admin', 'staff']}
     )
-    cost = models.DecimalField("费用(元)", max_digits=10, decimal_places=2, default=0.00)
+    cost = models.DecimalField("费用(元)", max_digits=10, decimal_places=2, default=0.00, validators=[MinValueValidator(0)])
     created_at = models.DateTimeField("记录时间", auto_now_add=True)
 
     class Meta:

@@ -1471,8 +1471,9 @@ class MaintenanceLogAddView(LoginRequiredMixin, StaffRequiredMixin, View):
             messages.success(request, "维保日志已记录！")
         else:
             for field, errors in form.errors.items():
+                field_label = form.fields[field].label if field in form.fields else field
                 for error in errors:
-                    messages.error(request, f"{field}: {error}")
+                    messages.error(request, f"{field_label}: {error}")
         return redirect(reverse('equipment_detail', kwargs={'pk': equipment_pk}))
 
 
@@ -1585,8 +1586,9 @@ class DutyScheduleBatchCopyView(LoginRequiredMixin, StaffRequiredMixin, View):
             messages.success(request, msg)
         else:
             for field, errors in form.errors.items():
+                field_label = form.fields[field].label if field in form.fields else field
                 for error in errors:
-                    messages.error(request, f"{field}: {error}")
+                    messages.error(request, f"{field_label}: {error}")
         return redirect(reverse('duty_schedule_list'))
 
 
@@ -1713,8 +1715,9 @@ class DecorationReviewView(LoginRequiredMixin, StaffRequiredMixin, View):
             messages.success(request, f"审核操作已完成：{action_text}")
         else:
             for field, errors in form.errors.items():
+                field_label = form.fields[field].label if field in form.fields else field
                 for error in errors:
-                    messages.error(request, f"{field}: {error}")
+                    messages.error(request, f"{field_label}: {error}")
         return redirect(reverse('decoration_detail', kwargs={'pk': pk}))
 
 
@@ -1743,8 +1746,9 @@ class DecorationCommentView(LoginRequiredMixin, View):
             messages.success(request, "评论已提交")
         else:
             for field, errors in form.errors.items():
+                field_label = form.fields[field].label if field in form.fields else field
                 for error in errors:
-                    messages.error(request, f"{field}: {error}")
+                    messages.error(request, f"{field_label}: {error}")
         return redirect(reverse('decoration_detail', kwargs={'pk': pk}))
 
 
