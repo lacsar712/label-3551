@@ -424,15 +424,15 @@ class DutyScheduleForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         date = cleaned_data.get('date')
-        shift = cleaned_data.get('shift')
         staff = cleaned_data.get('staff')
-        if date and shift and staff:
-            qs = DutySchedule.objects.filter(date=date, shift=shift, staff=staff)
+        if date and staff:
+            qs = DutySchedule.objects.filter(date=date, staff=staff)
             if self.instance and self.instance.pk:
                 qs = qs.exclude(pk=self.instance.pk)
             if qs.exists():
+                existing = qs.first()
                 raise forms.ValidationError(
-                    f"冲突：{staff.username} 在 {date} 的{dict(DutySchedule.SHIFT_CHOICES).get(shift, shift)}已有排班记录，同一人员同一日期同一班次不可重复排班！"
+                    f"冲突：{staff.username} 在 {date} 已有{existing.get_shift_display()}排班记录，同一人员同一日期不可重复排班！"
                 )
         return cleaned_data
 

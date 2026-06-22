@@ -44,24 +44,21 @@
 <script>
 (function() {
     var dateField = document.getElementById('id_date');
-    var shiftField = document.getElementById('id_shift');
     var staffField = document.getElementById('id_staff');
     var conflictAlert = document.getElementById('conflictAlert');
     var submitBtn = document.getElementById('submitBtn');
 
     function checkConflict() {
         var dateVal = dateField.value;
-        var shiftVal = shiftField.value;
         var staffVal = staffField.value;
 
-        if (!dateVal || !shiftVal || !staffVal) {
+        if (!dateVal || !staffVal) {
             conflictAlert.classList.add('d-none');
             submitBtn.disabled = false;
             return;
         }
 
         var url = '{% url "duty_schedule_conflict_check" %}?date=' + encodeURIComponent(dateVal) +
-                  '&shift=' + encodeURIComponent(shiftVal) +
                   '&staff=' + encodeURIComponent(staffVal);
 
         fetch(url)
@@ -83,7 +80,6 @@
     }
 
     dateField.addEventListener('change', checkConflict);
-    shiftField.addEventListener('change', checkConflict);
     staffField.addEventListener('change', checkConflict);
 })();
 </script>

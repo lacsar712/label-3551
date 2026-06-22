@@ -1568,9 +1568,10 @@ class DutyScheduleBatchCopyView(LoginRequiredMixin, StaffRequiredMixin, View):
             conflicts = []
             for s in source_schedules:
                 new_date = s.date + delta
-                if DutySchedule.objects.filter(date=new_date, shift=s.shift, staff=s.staff).exists():
+                if DutySchedule.objects.filter(date=new_date, staff=s.staff).exists():
                     skipped += 1
-                    conflicts.append(f"{s.staff.username} 在 {new_date} 的{dict(DutySchedule.SHIFT_CHOICES).get(s.shift, s.shift)}")
+                    existing = DutySchedule.objects.filter(date=new_date, staff=s.staff).first()
+                    conflicts.append(f"{s.staff.username} 在 {new_date} 已有{existing.get_shift_display()}")
                     continue
                 DutySchedule.objects.create(
                     date=new_date,
@@ -1595,19 +1596,18 @@ class DutyScheduleBatchCopyView(LoginRequiredMixin, StaffRequiredMixin, View):
 class DutyScheduleConflictCheckView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request):
         date_val = request.GET.get('date')
-        shift_val = request.GET.get('shift')
         staff_val = request.GET.get('staff')
         schedule_id = request.GET.get('schedule_id')
-        if not all([date_val, shift_val, staff_val]):
+        if not all([date_val, staff_val]):
             return JsonResponse({'conflict': False})
-        qs = DutySchedule.objects.filter(date=date_val, shift=shift_val, staff_id=staff_val)
+        qs = DutySchedule.objects.filter(date=date_val, staff_id=staff_val)
         if schedule_id:
             qs = qs.exclude(pk=schedule_id)
         if qs.exists():
             existing = qs.first()
             return JsonResponse({
                 'conflict': True,
-                'message': f"冲突：{existing.staff.username} 在 {date_val} 的{dict(DutySchedule.SHIFT_CHOICES).get(shift_val, shift_val)}已有排班记录！"
+                'message': f"冲突：{existing.staff.username} 在 {date_val} 已有{existing.get_shift_display()}排班记录，同一人员同一日期不可重复排班！"
             })
         return JsonResponse({'conflict': False})
 

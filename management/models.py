@@ -548,7 +548,7 @@ class DutySchedule(models.Model):
     class Meta:
         verbose_name = "值班排班"
         verbose_name_plural = "值班排班管理"
-        unique_together = ['date', 'shift', 'staff']
+        unique_together = ['date', 'staff']
         ordering = ['date', 'shift']
 
     def __str__(self):

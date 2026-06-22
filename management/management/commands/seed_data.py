@@ -523,13 +523,13 @@ class Command(BaseCommand):
             week_start = start_of_week + timedelta(weeks=week_offset)
             for day_offset in range(7):
                 current_date = week_start + timedelta(days=day_offset)
-                for shift in shifts:
-                    chosen = random.choice(staff_members)
-                    if not DutySchedule.objects.filter(date=current_date, shift=shift, staff=chosen).exists():
+                for s in staff_members:
+                    if not DutySchedule.objects.filter(date=current_date, staff=s).exists():
+                        shift = random.choice(shifts)
                         DutySchedule.objects.create(
                             date=current_date,
                             shift=shift,
-                            staff=chosen,
+                            staff=s,
                             remarks='',
                             created_by=admin
                         )
