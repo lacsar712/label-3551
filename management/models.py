@@ -357,6 +357,11 @@ class CommunityActivity(models.Model):
         return now <= self.registration_deadline and not self.is_full
 
     @property
+    def is_cancellation_open(self):
+        from django.utils import timezone
+        return timezone.now() <= self.registration_deadline
+
+    @property
     def is_ended(self):
         from django.utils import timezone
         return timezone.now() > self.end_time

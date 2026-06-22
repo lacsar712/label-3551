@@ -29,14 +29,14 @@
                 <div class="d-flex align-items-start justify-content-between mb-3">
                     <h2 class="h3 fw-bold mb-0">{{ activity.title }}</h2>
                     <div class="d-flex flex-column align-items-end gap-1">
-                        {% if has_registered %}
+                        {% if activity.is_ended %}
+                        <span class="badge bg-secondary fs-6">已结束</span>
+                        {% elif has_registered %}
                         <span class="badge bg-primary fs-6">已报名</span>
                         {% elif activity.is_full %}
                         <span class="badge bg-danger fs-6">已满员</span>
                         {% elif not activity.is_registration_open %}
                         <span class="badge bg-warning text-dark fs-6">报名截止</span>
-                        {% elif activity.is_ended %}
-                        <span class="badge bg-secondary fs-6">已结束</span>
                         {% else %}
                         <span class="badge bg-success fs-6">可报名</span>
                         {% endif %}
@@ -88,11 +88,13 @@
                     {% if has_registered %}
                     <div class="alert alert-success d-flex justify-content-between align-items-center">
                         <span>您已成功报名此活动！</span>
-                        {% if activity.is_registration_open %}
-                        <form method="post" action="{% url 'activity_cancel' activity.pk %}" style="display:inline;" onsubmit="return confirm('确定取消报名吗？');">
+                        {% if activity.is_cancellation_open %}
+                        <form method="post" action="{% url 'activity_cancel' activity.pk %}" style="display:inline;" onsubmit="return confirm('确定取消报名吗？取消后名额将释放给其他业主。');">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-sm btn-outline-danger">取消报名</button>
                         </form>
+                        {% else %}
+                        <span class="text-muted small">报名已截止，无法取消</span>
                         {% endif %}
                     </div>
                     {% elif activity.is_full %}

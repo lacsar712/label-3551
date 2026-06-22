@@ -1295,12 +1295,12 @@ class ActivityCancelRegistrationView(LoginRequiredMixin, View):
             messages.warning(request, "您尚未报名此活动！")
             return redirect(reverse('owner_activity_detail', kwargs={'pk': activity.pk}))
 
-        if not activity.is_registration_open:
+        if not activity.is_cancellation_open:
             messages.error(request, "报名已截止，无法取消报名！")
             return redirect(reverse('owner_activity_detail', kwargs={'pk': activity.pk}))
 
         registration.delete()
-        messages.success(request, "已取消报名！")
+        messages.success(request, "已取消报名，名额已释放！")
         return redirect(reverse('owner_activity_detail', kwargs={'pk': activity.pk}))
 
 
