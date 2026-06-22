@@ -157,7 +157,7 @@
                                 {% elif review.action == 'completed' %}
                                 <span class="badge bg-secondary ms-2">施工完成</span>
                                 {% elif review.action == 'pending' %}
-                                <span class="badge bg-warning text-dark ms-2">补充材料</span>
+                                <span class="badge bg-warning text-dark ms-2">{% if forloop.first and review.reviewer.role == 'owner' %}提交申请{% else %}补充材料{% endif %}</span>
                                 {% endif %}
                             </div>
                             <small class="text-muted">{{ review.created_at|date:"Y-m-d H:i:s" }}</small>

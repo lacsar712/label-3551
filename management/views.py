@@ -1659,9 +1659,16 @@ class DecorationCreateView(LoginRequiredMixin, CreateView):
         return kwargs
 
     def form_valid(self, form):
-        form.instance.owner = self.request.user
+        form.instance.owner = form.instance.unit.owner
+        response = super().form_valid(form)
+        DecorationReview.objects.create(
+            application=self.object,
+            reviewer=self.request.user,
+            action='pending',
+            opinion=f"提交装修申请。\n\n施工内容：{form.instance.construction_content}\n\n承诺事项：{form.instance.commitment}"
+        )
         messages.success(self.request, "装修申请提交成功！请等待物业审核。")
-        return super().form_valid(form)
+        return response
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

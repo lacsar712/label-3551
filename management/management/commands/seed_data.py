@@ -557,6 +557,12 @@ class Command(BaseCommand):
 
         DecorationReview.objects.create(
             application=dec1,
+            reviewer=owner1,
+            action='pending',
+            opinion='提交装修申请。\n\n施工内容：全屋精装修，包括水电改造、墙面处理、地板铺设、吊顶安装、厨卫装修等\n\n承诺事项：本人承诺：1. 严格遵守施工时间规定（工作日8:00-12:00，14:00-18:00）；2. 不破坏房屋承重结构；3. 及时清运建筑垃圾；4. 施工期间做好安全防护措施；5. 接受物业管理人员的监督检查。'
+        )
+        DecorationReview.objects.create(
+            application=dec1,
             reviewer=staff,
             action='approved',
             opinion='申请材料齐全，符合装修管理规定，同意施工。请严格遵守施工时间，确保施工安全。'
@@ -580,6 +586,12 @@ class Command(BaseCommand):
 
         DecorationReview.objects.create(
             application=dec2,
+            reviewer=owner2,
+            action='pending',
+            opinion='提交装修申请。\n\n施工内容：卫生间翻新，包括更换洁具、墙砖地砖重铺、防水重做\n\n承诺事项：本人承诺：1. 严格遵守施工时间规定；2. 做好防水保护，不影响楼下住户；3. 及时清运装修垃圾；4. 施工人员佩戴出入证。'
+        )
+        DecorationReview.objects.create(
+            application=dec2,
             reviewer=admin,
             action='approved',
             opinion='同意施工。请注意做好防水措施，施工完毕后需做闭水试验。'
@@ -598,6 +610,13 @@ class Command(BaseCommand):
             status='pending'
         )
 
+        DecorationReview.objects.create(
+            application=dec3,
+            reviewer=owner1,
+            action='pending',
+            opinion='提交装修申请。\n\n施工内容：拆除客厅与卧室之间的非承重隔墙，扩大客厅空间\n\n承诺事项：本人承诺：1. 仅拆除非承重墙体，不破坏任何承重结构；2. 委托有资质的施工单位施工；3. 施工期间采取有效的防尘降噪措施；4. 建筑垃圾及时清运至指定地点。'
+        )
+
         dec4 = DecorationApplication.objects.create(
             owner=owner2,
             unit=u2,
@@ -614,6 +633,12 @@ class Command(BaseCommand):
             review_time=timezone.now() - timedelta(days=1)
         )
 
+        DecorationReview.objects.create(
+            application=dec4,
+            reviewer=owner2,
+            action='pending',
+            opinion='提交装修申请。\n\n施工内容：厨房翻新，更换橱柜、抽油烟机、燃气灶，重新铺贴墙砖地砖\n\n承诺事项：本人承诺：遵守小区装修管理规定，文明施工，安全第一。'
+        )
         DecorationReview.objects.create(
             application=dec4,
             reviewer=staff,
@@ -637,6 +662,12 @@ class Command(BaseCommand):
             review_time=timezone.now() - timedelta(days=61)
         )
 
+        DecorationReview.objects.create(
+            application=dec5,
+            reviewer=owner1,
+            action='pending',
+            opinion='提交装修申请。\n\n施工内容：书房装修，包括定制书柜、铺设木地板、墙面刷漆\n\n承诺事项：遵守装修管理规定，文明施工。'
+        )
         DecorationReview.objects.create(
             application=dec5,
             reviewer=staff,
@@ -666,6 +697,12 @@ class Command(BaseCommand):
             review_time=timezone.now() - timedelta(days=2)
         )
 
+        DecorationReview.objects.create(
+            application=dec6,
+            reviewer=owner2,
+            action='pending',
+            opinion='提交装修申请。\n\n施工内容：全屋精装修，包含水电改造、全屋定制、地板铺贴、墙面处理、厨卫装修等\n\n承诺事项：严格遵守小区各项装修管理规定，确保施工安全和质量。'
+        )
         DecorationReview.objects.create(
             application=dec6,
             reviewer=admin,
