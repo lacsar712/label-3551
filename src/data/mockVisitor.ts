@@ -1,4 +1,18 @@
-import type { Visitor } from '../types/visitor'
+import type { Visitor, OwnerOption, UnitOption } from '../types/visitor'
+
+export const mockOwners: OwnerOption[] = [
+  { id: 1, username: 'owner1', name: '业主张三' },
+  { id: 2, username: 'owner2', name: '业主李四' },
+  { id: 3, username: 'owner3', name: '业主王五' },
+]
+
+export const mockUnits: UnitOption[] = [
+  { id: 1, ownerId: 1, name: '翠湖天地-1栋-101室' },
+  { id: 2, ownerId: 1, name: '翠湖天地-2栋-302室' },
+  { id: 3, ownerId: 2, name: '翠湖天地-1栋-102室' },
+  { id: 4, ownerId: 3, name: '翠湖天地-3栋-501室' },
+  { id: 5, ownerId: 3, name: '翠湖天地-3栋-502室' },
+]
 
 export const mockVisitors: Visitor[] = [
   {

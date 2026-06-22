@@ -100,8 +100,8 @@ class VisitorForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'id_card_last4': forms.TextInput(attrs={'class': 'form-control', 'maxlength': '4'}),
-            'owner': forms.Select(attrs={'class': 'form-select'}),
-            'unit': forms.Select(attrs={'class': 'form-select'}),
+            'owner': forms.Select(attrs={'class': 'form-select', 'id': 'id_owner'}),
+            'unit': forms.Select(attrs={'class': 'form-select', 'id': 'id_unit'}),
             'visit_reason': forms.TextInput(attrs={'class': 'form-control'}),
             'estimated_duration': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'estimated_leave_time': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
@@ -110,10 +110,36 @@ class VisitorForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['owner'].queryset = User.objects.filter(role='owner')
-        self.fields['unit'].queryset = Unit.objects.all()
+        
+        if self.instance.pk and self.instance.owner:
+            self.fields['unit'].queryset = Unit.objects.filter(owner=self.instance.owner)
+        elif self.data.get('owner'):
+            owner_id = self.data.get('owner')
+            if owner_id:
+                try:
+                    owner = User.objects.get(pk=owner_id, role='owner')
+                    self.fields['unit'].queryset = Unit.objects.filter(owner=owner)
+                except (User.DoesNotExist, ValueError):
+                    self.fields['unit'].queryset = Unit.objects.none()
+        else:
+            self.fields['unit'].queryset = Unit.objects.none()
+        
         if not self.instance.pk:
             self.initial['estimated_leave_time'] = (timezone.now() + timezone.timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M')
             self.initial['estimated_duration'] = 120
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        owner = cleaned_data.get('owner')
+        unit = cleaned_data.get('unit')
+        
+        if owner and unit:
+            if unit.owner != owner:
+                raise forms.ValidationError({
+                    'unit': f"所选房号「{unit}」不属于业主「{owner.username}」，请重新选择。"
+                })
+        
+        return cleaned_data
 
 class VisitorLeaveForm(forms.ModelForm):
     class Meta:

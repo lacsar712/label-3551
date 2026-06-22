@@ -37,3 +37,51 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ownerSelect = document.getElementById('id_owner');
+    const unitSelect = document.getElementById('id_unit');
+    
+    if (ownerSelect && unitSelect) {
+        const originalUnitOptions = Array.from(unitSelect.options);
+        
+        function updateUnitOptions() {
+            const ownerId = ownerSelect.value;
+            unitSelect.innerHTML = '<option value="">请先选择拜访业主</option>';
+            
+            if (ownerId) {
+                fetch(`/management/api/owner-units/${ownerId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.units && data.units.length > 0) {
+                            unitSelect.innerHTML = '';
+                            data.units.forEach(unit => {
+                                const option = document.createElement('option');
+                                option.value = unit.id;
+                                option.textContent = unit.name;
+                                unitSelect.appendChild(option);
+                            });
+                        } else {
+                            unitSelect.innerHTML = '<option value="">该业主名下暂无房产</option>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching units:', error);
+                        unitSelect.innerHTML = '<option value="">加载失败，请重试</option>';
+                    });
+            }
+        }
+        
+        ownerSelect.addEventListener('change', updateUnitOptions);
+        
+        if (!ownerSelect.value) {
+            unitSelect.innerHTML = '<option value="">请先选择拜访业主</option>';
+        } else {
+            updateUnitOptions();
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -53,6 +53,7 @@ urlpatterns = [
     path('visitor/add/', views.VisitorCreateView.as_view(), name='visitor_add'),
     path('visitor/<int:pk>/', views.VisitorDetailView.as_view(), name='visitor_detail'),
     path('visitor/<int:pk>/leave/', views.VisitorLeaveView.as_view(), name='visitor_leave'),
+    path('api/owner-units/<int:owner_id>/', views.get_owner_units, name='api_owner_units'),
 
     # 社区公告 - 管理端 (admin/staff)
     path('announcement/', views.AnnouncementListView.as_view(), name='announcement_list'),

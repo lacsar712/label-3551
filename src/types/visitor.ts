@@ -21,3 +21,15 @@ export interface VisitorFilter {
   ownerId?: string
   status?: VisitorStatus | ''
 }
+
+export interface OwnerOption {
+  id: number
+  username: string
+  name: string
+}
+
+export interface UnitOption {
+  id: number
+  ownerId: number
+  name: string
+}

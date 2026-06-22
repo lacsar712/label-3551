@@ -563,6 +563,17 @@ class VisitorLeaveView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
         context['title'] = "标记访客离场"
         return context
 
+@login_required
+def get_owner_units(request, owner_id):
+    if request.user.role not in ['admin', 'staff']:
+        return JsonResponse({'error': '无权限访问'}, status=403)
+    try:
+        owner = User.objects.get(pk=owner_id, role='owner')
+        units = Unit.objects.filter(owner=owner)
+        unit_list = [{'id': u.id, 'name': str(u)} for u in units]
+        return JsonResponse({'units': unit_list})
+    except User.DoesNotExist:
+        return JsonResponse({'units': []})
 
 class AnnouncementListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
     model = Announcement
