@@ -52,6 +52,29 @@
 
 <div class="row">
     <div class="col-lg-10 mx-auto">
+        {% if request.user.role == 'admin' or request.user.role == 'staff' %}
+            {% if announcement.status == 'published' and announcement.is_effective %}
+            <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+                <strong>✓ 当前状态：</strong>&nbsp;公告已发布且在有效期内，业主端可正常浏览。
+            </div>
+            {% elif announcement.status == 'published' and announcement.is_expired %}
+            <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+                <strong>⚠ 注意：</strong>&nbsp;公告已发布但已超过生效结束日期，业主端无法浏览。请编辑并延长生效日期，或前往历史公告Tab查看。
+            </div>
+            {% elif announcement.status == 'published' %}
+            <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+                <strong>⏰ 提示：</strong>&nbsp;公告已发布但尚未到生效开始日期，业主端暂时不可见，到期后将自动展示。
+            </div>
+            {% elif announcement.status == 'draft' %}
+            <div class="alert alert-secondary d-flex align-items-center mb-4" role="alert">
+                <strong>📝 草稿状态：</strong>&nbsp;当前为草稿，业主端不可见。请编辑完善后点击发布。
+            </div>
+            {% elif announcement.status == 'withdrawn' %}
+            <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+                <strong>⏸ 已撤回：</strong>&nbsp;公告已撤回，业主端不可见。可编辑后重新发布。
+            </div>
+            {% endif %}
+        {% endif %}
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white py-4">
                 <div class="d-flex align-items-start justify-content-between mb-3">

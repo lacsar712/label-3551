@@ -101,16 +101,30 @@
                         <a href="{% url 'announcement_detail' ann.pk %}" class="text-decoration-none fw-semibold">
                             {{ ann.title }}
                         </a>
-                        {% if ann.is_effective %}
-                        <span class="badge bg-success ms-2">生效中</span>
-                        {% elif ann.is_expired and current_tab == 'active' %}
-                        <span class="badge bg-secondary ms-2">已过期</span>
+                        {% if ann.status == 'published' %}
+                            {% if ann.is_effective %}
+                            <span class="badge bg-success ms-2">✓ 生效中 · 业主可见</span>
+                            {% elif ann.effective_start_date > today %}
+                            <span class="badge bg-info ms-2">⏰ 未生效</span>
+                            {% else %}
+                            <span class="badge bg-secondary ms-2">⚠ 已过期 · 业主不可见</span>
+                            {% endif %}
+                        {% elif ann.status == 'draft' %}
+                            <span class="badge bg-light text-dark ms-2">草稿</span>
+                        {% elif ann.status == 'withdrawn' %}
+                            <span class="badge bg-danger ms-2">已撤回 · 业主不可见</span>
                         {% endif %}
                     </td>
                     <td>
+                        {% if ann.status == 'published' and ann.is_effective %}
+                        <span class="badge bg-success">{{ ann.get_status_display }}</span>
+                        {% elif ann.status == 'published' and ann.is_expired %}
+                        <span class="badge bg-secondary">已过期</span>
+                        {% else %}
                         <span class="badge status-badge-{{ ann.status }}">
                             {{ ann.get_status_display }}
                         </span>
+                        {% endif %}
                     </td>
                     <td>
                         <small class="text-muted">

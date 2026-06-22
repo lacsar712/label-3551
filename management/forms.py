@@ -1,6 +1,7 @@
 from django import forms
 from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview, MeterReading
 from django.utils import timezone
+import re
 
 class OwnerForm(forms.ModelForm):
     class Meta:
@@ -174,12 +175,48 @@ class AnnouncementForm(forms.ModelForm):
             self.initial['effective_start_date'] = today
             self.initial['effective_end_date'] = today + timezone.timedelta(days=30)
 
+    @staticmethod
+    def _strip_html_tags(html_content):
+        if not html_content:
+            return ''
+        clean = re.compile('<.*?>')
+        text = re.sub(clean, '', html_content)
+        text = text.replace('&nbsp;', ' ').replace('&zwj;', '').replace('\u200b', '')
+        return text.strip()
+
+    def clean_title(self):
+        title = self.cleaned_data.get('title', '').strip()
+        if not title:
+            raise forms.ValidationError("公告标题不能为空")
+        if len(title) < 2:
+            raise forms.ValidationError("公告标题至少需要2个字符")
+        return title
+
+    def clean_content(self):
+        content = self.cleaned_data.get('content', '')
+        plain_text = self._strip_html_tags(content)
+        if not plain_text:
+            raise forms.ValidationError("公告正文不能为空，请填写具体内容")
+        if len(plain_text) < 3:
+            raise forms.ValidationError("公告正文内容过短，至少需要3个字符")
+        return content
+
     def clean(self):
         cleaned_data = super().clean()
         start = cleaned_data.get('effective_start_date')
         end = cleaned_data.get('effective_end_date')
-        if start and end and start > end:
-            raise forms.ValidationError("生效开始日期不能晚于结束日期")
+
+        if start and end:
+            if start > end:
+                raise forms.ValidationError("生效开始日期不能晚于结束日期")
+
+            today = timezone.localdate()
+            if end < today:
+                raise forms.ValidationError(
+                    f"生效结束日期不能早于今天（{today.strftime('%Y-%m-%d')}），"
+                    f"否则公告发布后业主端将无法看到。请调整生效日期。"
+                )
+
         return cleaned_data
 
 class ParkingSpotForm(forms.ModelForm):

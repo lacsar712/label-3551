@@ -707,12 +707,41 @@ class AnnouncementDetailView(LoginRequiredMixin, DetailView):
 class AnnouncementPublishView(LoginRequiredMixin, StaffRequiredMixin, View):
     def post(self, request, pk):
         announcement = get_object_or_404(Announcement, pk=pk)
+        today = timezone.localdate()
+        import re
+
+        def _strip_html(html_content):
+            if not html_content:
+                return ''
+            clean = re.compile('<.*?>')
+            text = re.sub(clean, '', html_content)
+            text = text.replace('&nbsp;', ' ').replace('&zwj;', '').replace('\u200b', '')
+            return text.strip()
+
+        plain_text = _strip_html(announcement.content)
+        if not plain_text or len(plain_text) < 3:
+            messages.error(request, "发布失败：公告正文内容为空或过短，请先编辑正文内容。")
+            return redirect(reverse('announcement_edit', args=[pk]))
+
+        if announcement.effective_end_date < today:
+            messages.error(
+                request,
+                f"发布失败：生效结束日期（{announcement.effective_end_date.strftime('%Y-%m-%d')}）"
+                f"已早于今天（{today.strftime('%Y-%m-%d')}），业主端将无法看到此公告。"
+                f"请先编辑并调整生效日期后再发布。"
+            )
+            return redirect(reverse('announcement_edit', args=[pk]))
+
+        if not announcement.title or len(announcement.title.strip()) < 2:
+            messages.error(request, "发布失败：公告标题不能为空或过短。")
+            return redirect(reverse('announcement_edit', args=[pk]))
+
         announcement.status = 'published'
         announcement.publish_time = timezone.now()
         announcement.withdraw_time = None
         announcement.publisher = request.user
         announcement.save()
-        messages.success(request, "公告发布成功！")
+        messages.success(request, "公告发布成功！业主端已可见。")
         return redirect(reverse('announcement_list'))
 
 
