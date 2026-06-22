@@ -1,6 +1,7 @@
 from django import forms
 from .models import User, Estate, Building, Floor, Unit, Repair, Fee, Visitor, Announcement, ParkingSpot, ComplaintSuggestion, ComplaintReply, Package, CommunityActivity, Equipment, MaintenanceLog, DutySchedule, DecorationApplication, DecorationReview, MeterReading
 from django.utils import timezone
+from datetime import date
 import re
 
 class OwnerForm(forms.ModelForm):
@@ -525,13 +526,17 @@ class DecorationReviewCommentForm(forms.ModelForm):
 
 
 class MeterReadingForm(forms.ModelForm):
+    reading_month = forms.CharField(
+        label="抄表月份",
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'month'}),
+    )
+
     class Meta:
         model = MeterReading
         fields = ['unit', 'meter_type', 'reading_month', 'current_reading', 'remarks']
         widgets = {
             'unit': forms.Select(attrs={'class': 'form-select'}),
             'meter_type': forms.Select(attrs={'class': 'form-select'}),
-            'reading_month': forms.DateInput(attrs={'class': 'form-control', 'type': 'month'}),
             'current_reading': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
             'remarks': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '选填，如抄表异常说明等'}),
         }
@@ -540,12 +545,23 @@ class MeterReadingForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if not self.instance.pk:
             today = timezone.localdate()
-            first_day = today.replace(day=1)
-            self.initial['reading_month'] = first_day.strftime('%Y-%m')
+            self.initial['reading_month'] = today.replace(day=1).strftime('%Y-%m')
+        else:
+            self.initial['reading_month'] = self.instance.reading_month.strftime('%Y-%m')
+
+    def clean_reading_month(self):
+        value = self.cleaned_data.get('reading_month')
+        if isinstance(value, date):
+            return value.replace(day=1)
+        try:
+            year, month = map(int, str(value).split('-'))
+            return date(year, month, 1)
+        except (ValueError, AttributeError):
+            raise forms.ValidationError("请输入有效的月份，格式为 YYYY-MM")
 
 
 class MeterReadingBatchForm(forms.Form):
-    reading_month = forms.DateField(
+    reading_month = forms.CharField(
         label="抄表月份",
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'month'})
     )
@@ -570,12 +586,21 @@ class MeterReadingBatchForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         today = timezone.localdate()
-        first_day = today.replace(day=1)
-        self.initial['reading_month'] = first_day.strftime('%Y-%m')
+        self.initial['reading_month'] = today.replace(day=1).strftime('%Y-%m')
+
+    def clean_reading_month(self):
+        value = self.cleaned_data.get('reading_month')
+        if isinstance(value, date):
+            return value.replace(day=1)
+        try:
+            year, month = map(int, str(value).split('-'))
+            return date(year, month, 1)
+        except (ValueError, AttributeError):
+            raise forms.ValidationError("请输入有效的月份，格式为 YYYY-MM")
 
     def clean(self):
         cleaned_data = super().clean()
         reading_month = cleaned_data.get('reading_month')
-        if reading_month:
+        if reading_month and isinstance(reading_month, date):
             cleaned_data['reading_month'] = reading_month.replace(day=1)
         return cleaned_data
