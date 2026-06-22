@@ -6,7 +6,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('management', '0009_meterreading'),
+        ('management', '0009_alter_dutyschedule_unique_together'),
     ]
 
     operations = [

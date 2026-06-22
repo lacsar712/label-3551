@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('management', '0008_dutyschedule'),
+        ('management', '0009_meterreading'),
     ]
 
     operations = [
