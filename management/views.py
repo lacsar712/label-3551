@@ -1130,6 +1130,19 @@ class PackageDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
+class OwnerUnitsView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def get(self, request, owner_id):
+        units = Unit.objects.filter(owner_id=owner_id).select_related('floor', 'floor__building', 'floor__building__estate')
+        data = [
+            {
+                'id': u.id,
+                'label': f"{u.floor.building.estate.name} - {u.floor.building.name} - {u.name}"
+            }
+            for u in units
+        ]
+        return JsonResponse({'units': data})
+
+
 # --- 社区活动管理 ---
 class CommunityActivityListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
     model = CommunityActivity

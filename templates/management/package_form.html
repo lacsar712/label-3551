@@ -27,6 +27,14 @@
         </div>
         {% endif %}
 
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger mb-4">
+            {% for error in form.non_field_errors %}
+            {{ error }}
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <form method="post">
             {% csrf_token %}
             <div class="row g-3">
@@ -50,11 +58,75 @@
 
             <div class="mt-4">
                 <button type="submit" class="btn btn-primary me-2">
-                    {% if is_editing %}确认取件{% else %}提交登记{% endif %}
+                    {% if is_pickup %}确认取件{% else %}提交登记{% endif %}
                 </button>
                 <a href="{% url 'package_list' %}" class="btn btn-outline-secondary">取消</a>
             </div>
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if not is_pickup %}
+<script>
+(function () {
+    const ownerSelect = document.getElementById('id_owner');
+    const unitSelect = document.getElementById('id_unit');
+
+    if (!ownerSelect || !unitSelect) return;
+
+    async function loadUnits(ownerId) {
+        unitSelect.innerHTML = '<option value="">加载中...</option>';
+        unitSelect.disabled = true;
+
+        if (!ownerId) {
+            unitSelect.innerHTML = '<option value="">请先选择收件业主</option>';
+            return;
+        }
+
+        try {
+            const url = "{% url 'owner_units_api' 0 %}".replace('/0/', '/' + ownerId + '/');
+            const resp = await fetch(url, {
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            });
+            const data = await resp.json();
+            const units = data.units || [];
+
+            let html = '<option value="">请选择关联房号</option>';
+            if (units.length === 0) {
+                html = '<option value="">该业主暂未绑定房屋</option>';
+            } else {
+                units.forEach(u => {
+                    html += `<option value="${u.id}">${u.label}</option>`;
+                });
+            }
+            unitSelect.innerHTML = html;
+            unitSelect.disabled = units.length === 0;
+        } catch (err) {
+            console.error(err);
+            unitSelect.innerHTML = '<option value="">加载失败，请刷新重试</option>';
+        }
+    }
+
+    ownerSelect.addEventListener('change', function () {
+        loadUnits(this.value);
+    });
+
+    {% if not form.instance.pk %}
+    if (ownerSelect.value) {
+        loadUnits(ownerSelect.value);
+    } else {
+        unitSelect.innerHTML = '<option value="">请先选择收件业主</option>';
+    }
+    {% else %}
+    if (ownerSelect.value) {
+        loadUnits(ownerSelect.value).then(() => {
+            unitSelect.value = "{{ form.instance.unit_id|default:'' }}";
+        });
+    }
+    {% endif %}
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -277,21 +277,35 @@ class ComplaintReplyForm(forms.ModelForm):
 class PackageForm(forms.ModelForm):
     class Meta:
         model = Package
-        fields = ['owner', 'unit', 'courier_company', 'tracking_last4', 'package_size', 'storage_location', 'remarks']
+        fields = ['owner', 'unit', 'courier_company', 'tracking_last4', 'package_size', 'storage_location', 'arrival_time', 'remarks']
         widgets = {
-            'owner': forms.Select(attrs={'class': 'form-select'}),
-            'unit': forms.Select(attrs={'class': 'form-select'}),
+            'owner': forms.Select(attrs={'class': 'form-select', 'id': 'id_owner'}),
+            'unit': forms.Select(attrs={'class': 'form-select', 'id': 'id_unit'}),
             'courier_company': forms.Select(attrs={'class': 'form-select'}),
             'tracking_last4': forms.TextInput(attrs={'class': 'form-control', 'maxlength': '4', 'placeholder': '请输入单号后四位'}),
             'package_size': forms.Select(attrs={'class': 'form-select'}),
             'storage_location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '如：1栋快递柜A区03号'}),
+            'arrival_time': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
             'remarks': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '选填，如易碎品、冷藏等特殊说明'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['owner'].queryset = User.objects.filter(role='owner')
-        self.fields['unit'].queryset = Unit.objects.all()
+        if self.instance.pk and self.instance.owner_id:
+            self.fields['unit'].queryset = Unit.objects.filter(owner_id=self.instance.owner_id)
+        else:
+            self.fields['unit'].queryset = Unit.objects.none()
+        if not self.instance.pk:
+            self.initial['arrival_time'] = timezone.now().strftime('%Y-%m-%dT%H:%M')
+
+    def clean(self):
+        cleaned_data = super().clean()
+        owner = cleaned_data.get('owner')
+        unit = cleaned_data.get('unit')
+        if unit and owner and unit.owner_id and unit.owner_id != owner.id:
+            raise forms.ValidationError("关联房号不属于所选收件业主，请重新选择")
+        return cleaned_data
 
 
 class PackagePickupForm(forms.ModelForm):

@@ -89,6 +89,7 @@ urlpatterns = [
     path('package/<int:pk>/', views.PackageDetailView.as_view(), name='package_detail'),
     path('package/<int:pk>/pickup/', views.PackagePickupView.as_view(), name='package_pickup'),
     path('package/<int:pk>/delete/', views.PackageDeleteView.as_view(), name='package_delete'),
+    path('api/owner-units/<int:owner_id>/', views.OwnerUnitsView.as_view(), name='owner_units_api'),
 
     # 社区活动 - 管理端
     path('activity/', views.CommunityActivityListView.as_view(), name='activity_list'),

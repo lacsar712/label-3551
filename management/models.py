@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
 
 class User(AbstractUser):
     ROLE_CHOICES = (
@@ -408,7 +409,7 @@ class Package(models.Model):
     tracking_last4 = models.CharField("单号后四位", max_length=4)
     package_size = models.CharField("包裹规格", max_length=20, choices=SIZE_CHOICES, default='medium')
     storage_location = models.CharField("存放位置", max_length=100)
-    arrival_time = models.DateTimeField("到达时间", auto_now_add=True)
+    arrival_time = models.DateTimeField("到达时间", default=timezone.now)
     remarks = models.TextField("备注", blank=True, null=True)
 
     status = models.CharField("状态", max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -424,6 +425,11 @@ class Package(models.Model):
 
     def __str__(self):
         return f"{self.get_courier_company_display()} - {self.tracking_last4} - {self.owner.username}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.unit and self.unit.owner and self.unit.owner_id != self.owner_id:
+            raise ValidationError("关联房号不属于所选收件业主")
 
     @property
     def is_overdue(self):
