@@ -210,7 +210,7 @@
 <div class="modal fade" id="bindModal{{ spot.pk }}" tabindex="-1" aria-labelledby="bindModalLabel{{ spot.pk }}" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="post" action="{% url 'parking_spot_bind' spot.pk %}">
+            <form method="post" action="{% url 'parking_spot_bind' spot.pk %}" id="bindForm{{ spot.pk }}" onsubmit="return validateBindForm{{ spot.pk }}(this);">
                 {% csrf_token %}
                 <div class="modal-header">
                     <h5 class="modal-title" id="bindModalLabel{{ spot.pk }}">绑定车位 - {{ spot.spot_number }}</h5>
@@ -218,22 +218,21 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">选择业主</label>
-                        <select class="form-select" name="owner_id" required>
+                        <label class="form-label">选择业主 <span class="text-danger">*</span></label>
+                        <select class="form-select" name="owner_id" id="ownerSelect{{ spot.pk }}" onchange="updateUnitOptions{{ spot.pk }}(this);" required>
                             <option value="">请选择业主</option>
                             {% for owner in owners %}
                             <option value="{{ owner.id }}">{{ owner.username }}{% if owner.phone %} ({{ owner.phone }}){% endif %}</option>
                             {% endfor %}
                         </select>
+                        <div class="invalid-feedback" id="ownerError{{ spot.pk }}"></div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">关联单元（可选）</label>
-                        <select class="form-select" name="unit_id">
-                            <option value="">不关联</option>
-                            {% for unit in units %}
-                            <option value="{{ unit.id }}">{{ unit.floor.building.estate.name }} - {{ unit.floor.building.name }} - {{ unit.name }}</option>
-                            {% endfor %}
+                        <select class="form-select" name="unit_id" id="unitSelect{{ spot.pk }}" disabled>
+                            <option value="">请先选择业主</option>
                         </select>
+                        <div class="form-text">仅显示所选业主名下的房产单元</div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -288,4 +287,77 @@
 </div>
 {% endfor %}
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var ownerUnitsData = {{ owner_units_json|safe }};
+
+function updateUnitOptions(spotPk, selectEl) {
+    var ownerId = selectEl.value;
+    var unitSelect = document.getElementById('unitSelect' + spotPk);
+    var ownerError = document.getElementById('ownerError' + spotPk);
+    
+    ownerError.textContent = '';
+    selectEl.classList.remove('is-invalid');
+    
+    unitSelect.innerHTML = '';
+    unitSelect.disabled = true;
+    
+    if (!ownerId) {
+        var emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = '请先选择业主';
+        unitSelect.appendChild(emptyOption);
+        return;
+    }
+    
+    var units = ownerUnitsData[ownerId] || [];
+    
+    var defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = '不关联';
+    unitSelect.appendChild(defaultOption);
+    
+    if (units.length > 0) {
+        units.forEach(function(unit) {
+            var option = document.createElement('option');
+            option.value = unit.id;
+            option.textContent = unit.full_name;
+            unitSelect.appendChild(option);
+        });
+    } else {
+        var noUnitOption = document.createElement('option');
+        noUnitOption.value = '';
+        noUnitOption.textContent = '该业主暂无可绑定的房产单元';
+        unitSelect.appendChild(noUnitOption);
+    }
+    
+    unitSelect.disabled = false;
+}
+
+function validateBindForm(spotPk, formEl) {
+    var ownerSelect = document.getElementById('ownerSelect' + spotPk);
+    var ownerError = document.getElementById('ownerError' + spotPk);
+    
+    if (!ownerSelect.value) {
+        ownerSelect.classList.add('is-invalid');
+        ownerError.textContent = '请选择要绑定的业主';
+        return false;
+    }
+    
+    return true;
+}
+
+{% for spot in parking_spots %}
+{% if not spot.is_bound %}
+function updateUnitOptions{{ spot.pk }}(el) {
+    updateUnitOptions({{ spot.pk }}, el);
+}
+function validateBindForm{{ spot.pk }}(form) {
+    return validateBindForm({{ spot.pk }}, form);
+}
+{% endif %}
+{% endfor %}
+</script>
 {% endblock %}

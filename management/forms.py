@@ -238,6 +238,20 @@ class ParkingSpotForm(forms.ModelForm):
         self.fields['owner'].queryset = User.objects.filter(role='owner')
         self.fields['unit'].queryset = Unit.objects.all()
 
+    def clean(self):
+        cleaned_data = super().clean()
+        owner = cleaned_data.get('owner')
+        unit = cleaned_data.get('unit')
+
+        if unit and not owner:
+            raise forms.ValidationError("不能只设置关联单元而不设置绑定业主！如需绑定，请先选择业主。")
+
+        if owner and unit and unit.owner and unit.owner_id != owner.id:
+            unit_info = f"{unit.floor.building.name}-{unit.name}"
+            raise forms.ValidationError(f"单元 {unit_info} 不属于业主 {owner.username}，不能关联！")
+
+        return cleaned_data
+
 
 class ComplaintSuggestionForm(forms.ModelForm):
     class Meta:

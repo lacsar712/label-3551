@@ -816,7 +816,22 @@ class ParkingSpotListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
         context['estates'] = Estate.objects.all()
         context['spot_types'] = ParkingSpot.TYPE_CHOICES
         context['owners'] = User.objects.filter(role='owner')
-        context['units'] = Unit.objects.select_related('floor', 'floor__building', 'floor__building__estate').all()
+        all_units = Unit.objects.select_related('floor', 'floor__building', 'floor__building__estate').all()
+        context['units'] = all_units
+        
+        owner_units = {}
+        for unit in all_units:
+            if unit.owner_id:
+                if unit.owner_id not in owner_units:
+                    owner_units[unit.owner_id] = []
+                owner_units[unit.owner_id].append({
+                    'id': unit.id,
+                    'name': f"{unit.floor.building.name} - {unit.name}",
+                    'full_name': f"{unit.floor.building.estate.name} - {unit.floor.building.name} - {unit.name}"
+                })
+        import json
+        context['owner_units_json'] = json.dumps(owner_units, ensure_ascii=False)
+        
         context['current_filters'] = {
             'estate': self.request.GET.get('estate', ''),
             'spot_type': self.request.GET.get('spot_type', ''),
@@ -836,6 +851,8 @@ class ParkingSpotCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
     success_url = reverse_lazy('parking_spot_list')
 
     def form_valid(self, form):
+        if not form.instance.owner:
+            form.instance.unit = None
         messages.success(self.request, "车位添加成功！")
         return super().form_valid(form)
 
@@ -851,6 +868,8 @@ class ParkingSpotUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
     success_url = reverse_lazy('parking_spot_list')
 
     def form_valid(self, form):
+        if not form.instance.owner:
+            form.instance.unit = None
         messages.success(self.request, "车位信息更新成功！")
         return super().form_valid(form)
 
@@ -874,12 +893,21 @@ class ParkingSpotBindView(LoginRequiredMixin, StaffRequiredMixin, View):
         owner_id = request.POST.get('owner_id')
         unit_id = request.POST.get('unit_id')
 
-        if owner_id:
-            owner = get_object_or_404(User, pk=owner_id, role='owner')
-            parking_spot.owner = owner
+        if not owner_id:
+            messages.error(request, "绑定失败：请选择要绑定的业主！")
+            return redirect(reverse('parking_spot_list'))
+
+        owner = get_object_or_404(User, pk=owner_id, role='owner')
+        parking_spot.owner = owner
+
         if unit_id:
             unit = get_object_or_404(Unit, pk=unit_id)
+            if unit.owner and unit.owner_id != int(owner_id):
+                messages.error(request, f"绑定失败：单元 {unit.floor.building.name}-{unit.name} 不属于业主 {owner.username}！")
+                return redirect(reverse('parking_spot_list'))
             parking_spot.unit = unit
+        else:
+            parking_spot.unit = None
 
         parking_spot.save()
         messages.success(request, "车位绑定成功！")
