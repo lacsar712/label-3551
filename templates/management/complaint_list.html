@@ -15,7 +15,7 @@
 <div class="card shadow-sm border-0 mb-3">
     <div class="card-body">
         <form method="get" class="row g-3 align-items-end">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">类型</label>
                 <select name="cs_type" class="form-select">
                     <option value="">全部</option>
@@ -24,7 +24,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">状态</label>
                 <select name="status" class="form-select">
                     <option value="">全部</option>
@@ -32,6 +32,14 @@
                     <option value="{{ key }}" {% if current_filters.status == key %}selected{% endif %}>{{ value }}</option>
                     {% endfor %}
                 </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">提交开始日期</label>
+                <input type="date" name="date_start" class="form-control" value="{{ current_filters.date_start }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">提交结束日期</label>
+                <input type="date" name="date_end" class="form-control" value="{{ current_filters.date_end }}">
             </div>
             <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">查询</button>
@@ -109,17 +117,17 @@
     <ul class="pagination justify-content-center">
         {% if page_obj.has_previous %}
         <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&cs_type={{ current_filters.cs_type }}&status={{ current_filters.status }}">上一页</a>
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&cs_type={{ current_filters.cs_type }}&status={{ current_filters.status }}&date_start={{ current_filters.date_start }}&date_end={{ current_filters.date_end }}">上一页</a>
         </li>
         {% endif %}
         {% for num in page_obj.paginator.page_range %}
         <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-            <a class="page-link" href="?page={{ num }}&cs_type={{ current_filters.cs_type }}&status={{ current_filters.status }}">{{ num }}</a>
+            <a class="page-link" href="?page={{ num }}&cs_type={{ current_filters.cs_type }}&status={{ current_filters.status }}&date_start={{ current_filters.date_start }}&date_end={{ current_filters.date_end }}">{{ num }}</a>
         </li>
         {% endfor %}
         {% if page_obj.has_next %}
         <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}&cs_type={{ current_filters.cs_type }}&status={{ current_filters.status }}">下一页</a>
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}&cs_type={{ current_filters.cs_type }}&status={{ current_filters.status }}&date_start={{ current_filters.date_start }}&date_end={{ current_filters.date_end }}">下一页</a>
         </li>
         {% endif %}
     </ul>

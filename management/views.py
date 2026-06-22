@@ -25,6 +25,11 @@ class CustomLoginView(LoginView):
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return self.request.user.role in ['admin', 'staff']
+
+
+class OwnerRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.role == 'owner'
         
 class IndexView(LoginRequiredMixin, TemplateView):
     template_name = 'management/index.html'
@@ -936,10 +941,16 @@ class ComplaintListView(LoginRequiredMixin, ListView):
 
         cs_type = self.request.GET.get('cs_type')
         status = self.request.GET.get('status')
+        date_start = self.request.GET.get('date_start')
+        date_end = self.request.GET.get('date_end')
         if cs_type:
             qs = qs.filter(cs_type=cs_type)
         if status:
             qs = qs.filter(status=status)
+        if date_start:
+            qs = qs.filter(created_at__date__gte=date_start)
+        if date_end:
+            qs = qs.filter(created_at__date__lte=date_end)
 
         return qs
 
@@ -950,11 +961,13 @@ class ComplaintListView(LoginRequiredMixin, ListView):
         context['current_filters'] = {
             'cs_type': self.request.GET.get('cs_type', ''),
             'status': self.request.GET.get('status', ''),
+            'date_start': self.request.GET.get('date_start', ''),
+            'date_end': self.request.GET.get('date_end', ''),
         }
         return context
 
 
-class ComplaintCreateView(LoginRequiredMixin, CreateView):
+class ComplaintCreateView(LoginRequiredMixin, OwnerRequiredMixin, CreateView):
     model = ComplaintSuggestion
     form_class = ComplaintSuggestionForm
     template_name = 'management/complaint_form.html'
